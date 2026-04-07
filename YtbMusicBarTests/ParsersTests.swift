@@ -105,4 +105,271 @@ final class ParsersTests: XCTestCase {
         XCTAssertEqual(result?.source, "LRCLib")
         XCTAssertTrue(result?.isSynced == true)
     }
+
+    func testSearchParserSupportsAlbumAndPlaylistResults() {
+        let json: [String: Any] = [
+            "contents": [
+                "tabbedSearchResultsRenderer": [
+                    "tabs": [
+                        [
+                            "tabRenderer": [
+                                "content": [
+                                    "sectionListRenderer": [
+                                        "contents": [
+                                            [
+                                                "musicShelfRenderer": [
+                                                    "contents": [
+                                                        [
+                                                            "musicResponsiveListItemRenderer": [
+                                                                "flexColumns": [
+                                                                    [
+                                                                        "musicResponsiveListItemFlexColumnRenderer": [
+                                                                            "text": ["runs": [["text": "Album Result"]]]
+                                                                        ]
+                                                                    ],
+                                                                    [
+                                                                        "musicResponsiveListItemFlexColumnRenderer": [
+                                                                            "text": ["runs": [["text": "Album Artist"]]]
+                                                                        ]
+                                                                    ],
+                                                                ],
+                                                                "navigationEndpoint": [
+                                                                    "browseEndpoint": ["browseId": "MPREb_album"]
+                                                                ],
+                                                            ]
+                                                        ],
+                                                        [
+                                                            "musicResponsiveListItemRenderer": [
+                                                                "flexColumns": [
+                                                                    [
+                                                                        "musicResponsiveListItemFlexColumnRenderer": [
+                                                                            "text": ["runs": [["text": "Playlist Result"]]]
+                                                                        ]
+                                                                    ],
+                                                                    [
+                                                                        "musicResponsiveListItemFlexColumnRenderer": [
+                                                                            "text": ["runs": [["text": "Playlist Author"]]]
+                                                                        ]
+                                                                    ],
+                                                                ],
+                                                                "navigationEndpoint": [
+                                                                    "watchPlaylistEndpoint": ["playlistId": "PLplaylist123"]
+                                                                ],
+                                                            ]
+                                                        ],
+                                                    ]
+                                                ]
+                                            ],
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ],
+                    ]
+                ]
+            ]
+        ]
+
+        let results = SearchResponseParser.parse(json)
+        XCTAssertEqual(results.count, 2)
+        XCTAssertEqual(results[0].title, "Album Result")
+        XCTAssertEqual(results[0].resultType, .album)
+        XCTAssertNil(results[0].videoId)
+        XCTAssertNil(results[0].playlistId)
+        XCTAssertEqual(results[0].browseId, "MPREb_album")
+        XCTAssertEqual(results[1].title, "Playlist Result")
+        XCTAssertEqual(results[1].resultType, .playlist)
+        XCTAssertNil(results[1].videoId)
+        XCTAssertEqual(results[1].playlistId, "PLplaylist123")
+        XCTAssertNil(results[1].browseId)
+    }
+
+    func testBrowseParserPreservesCardShelfPlaylistIdentifiers() {
+        let json: [String: Any] = [
+            "contents": [
+                "singleColumnBrowseResultsRenderer": [
+                    "tabs": [
+                        [
+                            "tabRenderer": [
+                                "content": [
+                                    "sectionListRenderer": [
+                                        "contents": [
+                                            [
+                                                "musicCardShelfRenderer": [
+                                                    "header": [
+                                                        "musicCardShelfHeaderBasicRenderer": [
+                                                            "title": ["runs": [["text": "Made For You"]]]
+                                                        ]
+                                                    ],
+                                                    "title": ["runs": [["text": "Daily Mix"]]],
+                                                    "subtitle": ["runs": [["text": "Updated today"]]],
+                                                    "onTap": [
+                                                        "watchPlaylistEndpoint": ["playlistId": "RDAMVMplaylist"]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+        let response = BrowseResponseParser.parse(json)
+        XCTAssertEqual(response.sections.count, 1)
+        XCTAssertEqual(response.sections[0].items.count, 1)
+        let item = response.sections[0].items[0]
+        XCTAssertEqual(item.title, "Daily Mix")
+        XCTAssertEqual(item.resultType, .playlist)
+        XCTAssertEqual(item.playlistId, "RDAMVMplaylist")
+        XCTAssertNil(item.videoId)
+    }
+
+    func testBrowseShelfParserSeparatesSongAndPlaylistIdentifiers() {
+        let json: [String: Any] = [
+            "contents": [
+                "singleColumnBrowseResultsRenderer": [
+                    "tabs": [
+                        [
+                            "tabRenderer": [
+                                "content": [
+                                    "sectionListRenderer": [
+                                        "contents": [
+                                            [
+                                                "musicShelfRenderer": [
+                                                    "title": ["runs": [["text": "Shelf"]]],
+                                                    "contents": [
+                                                        [
+                                                            "musicResponsiveListItemRenderer": [
+                                                                "flexColumns": [
+                                                                    ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Song Item"]]]]],
+                                                                    ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Artist"]]]]]
+                                                                ],
+                                                                "navigationEndpoint": ["watchEndpoint": ["videoId": "song123"]]
+                                                            ]
+                                                        ],
+                                                        [
+                                                            "musicResponsiveListItemRenderer": [
+                                                                "flexColumns": [
+                                                                    ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Playlist Item"]]]]],
+                                                                    ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Curator"]]]]]
+                                                                ],
+                                                                "navigationEndpoint": ["watchPlaylistEndpoint": ["playlistId": "PL987"]]
+                                                            ]
+                                                        ]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+        let response = BrowseResponseParser.parse(json)
+        XCTAssertEqual(response.sections.count, 1)
+        XCTAssertEqual(response.sections[0].items.count, 2)
+        XCTAssertEqual(response.sections[0].items[0].videoId, "song123")
+        XCTAssertNil(response.sections[0].items[0].playlistId)
+        XCTAssertEqual(response.sections[0].items[1].playlistId, "PL987")
+        XCTAssertNil(response.sections[0].items[1].videoId)
+    }
+
+    func testSearchParserPrefersAlbumTypeWhenBrowseIdAndPlaylistIdCoexist() {
+        let json: [String: Any] = [
+            "contents": [
+                "tabbedSearchResultsRenderer": [
+                    "tabs": [[
+                        "tabRenderer": [
+                            "content": [
+                                "sectionListRenderer": [
+                                    "contents": [[
+                                        "musicShelfRenderer": [
+                                            "contents": [[
+                                                "musicResponsiveListItemRenderer": [
+                                                    "flexColumns": [
+                                                        ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Album With Playlist"]]]]],
+                                                        ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Artist"]]]]]
+                                                    ],
+                                                    "navigationEndpoint": [
+                                                        "browseEndpoint": ["browseId": "MPRE_album_123"],
+                                                        "watchPlaylistEndpoint": ["playlistId": "PL_album_playlist"]
+                                                    ]
+                                                ]
+                                            ]]
+                                        ]
+                                    ]]
+                                ]
+                            ]
+                        ]
+                    ]]
+                ]
+            ]
+        ]
+
+        let results = SearchResponseParser.parse(json)
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].resultType, .album)
+        XCTAssertEqual(results[0].playlistId, "PL_album_playlist")
+        XCTAssertEqual(results[0].browseId, "MPRE_album_123")
+    }
+
+    func testPlaylistParserPrefersEndpointPlaylistIdOverUnrelatedNestedValue() {
+        let json: [String: Any] = [
+            "contents": [
+                "singleColumnBrowseResultsRenderer": [
+                    "tabs": [[
+                        "tabRenderer": [
+                            "content": [
+                                "sectionListRenderer": [
+                                    "contents": [[
+                                        "musicShelfRenderer": [
+                                            "contents": [[
+                                                "musicResponsiveListItemRenderer": [
+                                                    "flexColumns": [
+                                                        ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Song"]]]]],
+                                                        ["musicResponsiveListItemFlexColumnRenderer": ["text": ["runs": [["text": "Artist"]]]]]
+                                                    ],
+                                                    "navigationEndpoint": [
+                                                        "watchEndpoint": [
+                                                            "videoId": "song123",
+                                                            "playlistId": "PL_correct_context"
+                                                        ]
+                                                    ],
+                                                    "menu": [
+                                                        "menuRenderer": [
+                                                            "items": [[
+                                                                "menuNavigationItemRenderer": [
+                                                                    "navigationEndpoint": [
+                                                                        "browseEndpoint": [
+                                                                            "browseId": "MISC",
+                                                                            "playlistId": "PL_wrong_nested"
+                                                                        ]
+                                                                    ]
+                                                                ]
+                                                            ]]
+                                                        ]
+                                                    ]
+                                                ]
+                                            ]]
+                                        ]
+                                    ]]
+                                ]
+                            ]
+                        ]
+                    ]]
+                ]
+            ]
+        ]
+
+        let detail = PlaylistParser.parse(json)
+        XCTAssertEqual(detail.playlistId, "PL_correct_context")
+    }
 }

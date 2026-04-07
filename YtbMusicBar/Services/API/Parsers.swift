@@ -1,5 +1,68 @@
 import Foundation
 
+private func classifyResultType(videoId: String?, playlistId: String?, browseId: String?) -> SearchResult.ResultType {
+    if videoId != nil {
+        return .song
+    }
+    guard let browseId else {
+        return playlistId != nil ? .playlist : .other
+    }
+
+    if browseId.hasPrefix("MPRE") || browseId.hasPrefix("OLAK") {
+        return .album
+    }
+    if browseId.hasPrefix("UC") || browseId.hasPrefix("MPLAUC") {
+        return .artist
+    }
+    if playlistId != nil {
+        return .playlist
+    }
+    if browseId.hasPrefix("VL") || browseId.hasPrefix("PL") || browseId.hasPrefix("RDCLAK") || browseId.hasPrefix("RD") {
+        return .playlist
+    }
+
+    return .other
+}
+
+private func buildSearchResult(
+    title: String,
+    subtitle: String = "",
+    videoId: String?,
+    playlistId: String?,
+    browseId: String?,
+    thumbnailURL: URL?
+) -> SearchResult {
+    SearchResult(
+        title: title,
+        subtitle: subtitle,
+        videoId: videoId,
+        playlistId: playlistId,
+        browseId: browseId,
+        thumbnailURL: thumbnailURL,
+        resultType: classifyResultType(videoId: videoId, playlistId: playlistId, browseId: browseId)
+    )
+}
+
+private func findValue(for key: String, in obj: Any, matching: ((Any) -> Bool)? = nil) -> Any? {
+    if let dict = obj as? [String: Any] {
+        if let value = dict[key] {
+            if let matching {
+                if matching(value) { return value }
+            } else {
+                return value
+            }
+        }
+        for value in dict.values {
+            if let found = findValue(for: key, in: value, matching: matching) { return found }
+        }
+    } else if let array = obj as? [Any] {
+        for item in array {
+            if let found = findValue(for: key, in: item, matching: matching) { return found }
+        }
+    }
+    return nil
+}
+
 // MARK: - Search Response Parser
 
 enum SearchResponseParser {
@@ -15,27 +78,41 @@ enum SearchResponseParser {
             guard let items = section.dig("musicShelfRenderer", "contents") as? [[String: Any]] else { continue }
 
             for item in items {
-                guard let flexColumns = item.dig("musicResponsiveListItemRenderer", "flexColumns") as? [[String: Any]]
+                guard let renderer = item["musicResponsiveListItemRenderer"] as? [String: Any],
+                      let flexColumns = renderer["flexColumns"] as? [[String: Any]]
                 else { continue }
 
                 let title = extractText(from: flexColumns, index: 0)
                 let subtitle = extractText(from: flexColumns, index: 1)
-                let videoId = item.dig("musicResponsiveListItemRenderer", "overlay",
-                                       "musicItemThumbnailOverlayRenderer", "content",
-                                       "musicPlayButtonRenderer", "playNavigationEndpoint",
-                                       "watchEndpoint", "videoId") as? String
+                let videoId = renderer.dig("overlay",
+                                           "musicItemThumbnailOverlayRenderer", "content",
+                                           "musicPlayButtonRenderer", "playNavigationEndpoint",
+                                           "watchEndpoint", "videoId") as? String
+                    ?? renderer.dig("navigationEndpoint", "watchEndpoint", "videoId") as? String
+                let playlistId = renderer.dig("overlay",
+                                              "musicItemThumbnailOverlayRenderer", "content",
+                                              "musicPlayButtonRenderer", "playNavigationEndpoint",
+                                              "watchEndpoint", "playlistId") as? String
+                    ?? renderer.dig("overlay",
+                                    "musicItemThumbnailOverlayRenderer", "content",
+                                    "musicPlayButtonRenderer", "playNavigationEndpoint",
+                                    "watchPlaylistEndpoint", "playlistId") as? String
+                    ?? renderer.dig("navigationEndpoint", "watchEndpoint", "playlistId") as? String
+                    ?? renderer.dig("navigationEndpoint", "watchPlaylistEndpoint", "playlistId") as? String
+                let browseId = renderer.dig("navigationEndpoint", "browseEndpoint", "browseId") as? String
 
-                let thumbnailURL = extractThumbnail(from: item.dig("musicResponsiveListItemRenderer", "thumbnail",
-                                                                    "musicThumbnailRenderer", "thumbnail",
-                                                                    "thumbnails") as? [[String: Any]])
+                let thumbnailURL = extractThumbnail(from: renderer.dig("thumbnail",
+                                                                       "musicThumbnailRenderer", "thumbnail",
+                                                                       "thumbnails") as? [[String: Any]])
 
                 if !title.isEmpty {
-                    results.append(SearchResult(
+                    results.append(buildSearchResult(
                         title: title,
                         subtitle: subtitle,
                         videoId: videoId,
-                        thumbnailURL: thumbnailURL,
-                        resultType: videoId != nil ? .song : .other
+                        playlistId: playlistId,
+                        browseId: browseId,
+                        thumbnailURL: thumbnailURL
                     ))
                 }
             }
@@ -112,19 +189,18 @@ enum BrowseResponseParser {
                     let thumbURL = thumbnails?.last?["url"] as? String
 
                     let videoId = cardShelf.dig("onTap", "watchEndpoint", "videoId") as? String
+                    let playlistId = cardShelf.dig("onTap", "watchEndpoint", "playlistId") as? String
                         ?? cardShelf.dig("onTap", "watchPlaylistEndpoint", "playlistId") as? String
                     let browseId = cardShelf.dig("onTap", "browseEndpoint", "browseId") as? String
 
-                    let playId = videoId ?? browseId
-                    let resultType: SearchResult.ResultType = videoId != nil ? .song : .playlist
-
                     if !mainTitle.isEmpty {
-                        items.append(SearchResult(
+                        items.append(buildSearchResult(
                             title: mainTitle,
                             subtitle: subtitle,
-                            videoId: playId,
-                            thumbnailURL: thumbURL.flatMap { URL(string: $0) },
-                            resultType: resultType
+                            videoId: videoId,
+                            playlistId: playlistId,
+                            browseId: browseId,
+                            thumbnailURL: thumbURL.flatMap { URL(string: $0) }
                         ))
                     }
                 }
@@ -205,35 +281,13 @@ enum BrowseResponseParser {
 
             let browseId = renderer.dig("navigationEndpoint", "browseEndpoint", "browseId") as? String
 
-            // Determine type and playable ID
-            let resultType: SearchResult.ResultType
-            let playableId: String?
-            if videoId != nil {
-                resultType = .song
-                playableId = videoId
-            } else if let playlistId {
-                resultType = .playlist
-                playableId = playlistId
-            } else if let browseId, browseId.hasPrefix("MPRE") || browseId.hasPrefix("OLAK") {
-                resultType = .album
-                playableId = browseId
-            } else if let browseId, browseId.hasPrefix("UC") || browseId.hasPrefix("MPLAUC") {
-                resultType = .artist
-                playableId = browseId
-            } else if let browseId, browseId.hasPrefix("VL") || browseId.hasPrefix("PL") || browseId.hasPrefix("RDCLAK") || browseId.hasPrefix("RD") {
-                resultType = .playlist
-                playableId = browseId
-            } else {
-                resultType = browseId != nil ? .other : .other
-                playableId = browseId
-            }
-
-            return SearchResult(
+            return buildSearchResult(
                 title: title,
                 subtitle: subtitle,
-                videoId: playableId,
-                thumbnailURL: thumbnailURL.flatMap { URL(string: $0) },
-                resultType: resultType
+                videoId: videoId,
+                playlistId: playlistId,
+                browseId: browseId,
+                thumbnailURL: thumbnailURL.flatMap { URL(string: $0) }
             )
         }
 
@@ -258,22 +312,36 @@ enum BrowseResponseParser {
                 .joined() ?? "")
             : ""
 
-        let videoId = item.dig("musicResponsiveListItemRenderer", "overlay",
-                                "musicItemThumbnailOverlayRenderer", "content",
-                                "musicPlayButtonRenderer", "playNavigationEndpoint",
-                                "watchEndpoint", "videoId") as? String
+        let renderer = item["musicResponsiveListItemRenderer"] as? [String: Any]
+        let videoId = renderer?.dig("overlay",
+                                    "musicItemThumbnailOverlayRenderer", "content",
+                                    "musicPlayButtonRenderer", "playNavigationEndpoint",
+                                    "watchEndpoint", "videoId") as? String
+            ?? renderer?.dig("navigationEndpoint", "watchEndpoint", "videoId") as? String
+        let playlistId = renderer?.dig("overlay",
+                                       "musicItemThumbnailOverlayRenderer", "content",
+                                       "musicPlayButtonRenderer", "playNavigationEndpoint",
+                                       "watchEndpoint", "playlistId") as? String
+            ?? renderer?.dig("overlay",
+                             "musicItemThumbnailOverlayRenderer", "content",
+                             "musicPlayButtonRenderer", "playNavigationEndpoint",
+                             "watchPlaylistEndpoint", "playlistId") as? String
+            ?? renderer?.dig("navigationEndpoint", "watchEndpoint", "playlistId") as? String
+            ?? renderer?.dig("navigationEndpoint", "watchPlaylistEndpoint", "playlistId") as? String
+        let browseId = renderer?.dig("navigationEndpoint", "browseEndpoint", "browseId") as? String
 
         let thumbnails = item.dig("musicResponsiveListItemRenderer", "thumbnail",
                                    "musicThumbnailRenderer", "thumbnail",
                                    "thumbnails") as? [[String: Any]]
         let thumbnailURL = thumbnails?.last?["url"] as? String
 
-        return SearchResult(
+        return buildSearchResult(
             title: title,
             subtitle: subtitle,
             videoId: videoId,
-            thumbnailURL: thumbnailURL.flatMap { URL(string: $0) },
-            resultType: videoId != nil ? .song : .other
+            playlistId: playlistId,
+            browseId: browseId,
+            thumbnailURL: thumbnailURL.flatMap { URL(string: $0) }
         )
     }
 }
@@ -284,6 +352,7 @@ struct PlaylistDetail {
     var title: String = ""
     var description: String = ""
     var thumbnailURL: URL?
+    var playlistId: String?
     var tracks: [Track] = []
 }
 
@@ -340,7 +409,43 @@ enum PlaylistParser {
             }
         }
 
+        detail.playlistId = extractPlayablePlaylistId(from: json)
+
         return detail
+    }
+
+    private static func extractPlayablePlaylistId(from object: Any) -> String? {
+        if let dict = object as? [String: Any] {
+            if let watchPlaylistEndpoint = dict["watchPlaylistEndpoint"] as? [String: Any],
+               let playlistId = watchPlaylistEndpoint["playlistId"] as? String,
+               isPlayablePlaylistId(playlistId) {
+                return playlistId
+            }
+
+            if let watchEndpoint = dict["watchEndpoint"] as? [String: Any],
+               let playlistId = watchEndpoint["playlistId"] as? String,
+               isPlayablePlaylistId(playlistId) {
+                return playlistId
+            }
+
+            for value in dict.values {
+                if let playlistId = extractPlayablePlaylistId(from: value) {
+                    return playlistId
+                }
+            }
+        } else if let array = object as? [Any] {
+            for item in array {
+                if let playlistId = extractPlayablePlaylistId(from: item) {
+                    return playlistId
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private static func isPlayablePlaylistId(_ value: String) -> Bool {
+        value.hasPrefix("VL") || value.hasPrefix("PL") || value.hasPrefix("RD") || value.hasPrefix("RDCLAK")
     }
 
     /// Find section contents from various response layouts
