@@ -12,9 +12,14 @@ final class AuthService {
         case loggingIn
         case validating
         case loggedIn
+
+        var isLoggedIn: Bool {
+            self == .loggedIn
+        }
     }
 
     var state: AuthState = .unknown
+    var needsReauth = false
     private let webKitManager: WebKitManager
 
     init(webKitManager: WebKitManager) {
@@ -30,6 +35,7 @@ final class AuthService {
 
         if await webKitManager.hasAuthCookies(in: dataStore) {
             state = .loggedIn
+            needsReauth = false
         } else {
             state = .loggedOut
         }
@@ -37,8 +43,8 @@ final class AuthService {
 
     /// Called when the cookie observer detects auth cookies after user login.
     /// Saves cookies immediately (kaset: forceBackupCookies) and transitions to logged in.
-    func onLoginDetected() {
-        guard state != .loggedIn else { return }
+    func completeLogin() {
+        guard state != .loggedIn || needsReauth else { return }
 
         // Force save cookies to Keychain immediately (kaset pattern)
         Task {
@@ -46,6 +52,12 @@ final class AuthService {
         }
 
         state = .loggedIn
+        needsReauth = false
+    }
+
+    func sessionExpired() {
+        state = .loggedOut
+        needsReauth = true
     }
 
     /// Sign out: clear cookies and reset state.
@@ -62,6 +74,7 @@ final class AuthService {
         }
 
         state = .loggedOut
+        needsReauth = false
     }
 
     /// Start login flow (user will see WebView).

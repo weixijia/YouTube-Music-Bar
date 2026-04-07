@@ -7,6 +7,7 @@ import CryptoKit
 final class YTMusicClient {
 
     private let webKitManager: WebKitManager
+    private let authService: AuthService
     private let cache = APICache()
     private let session: URLSession
 
@@ -43,8 +44,9 @@ final class YTMusicClient {
 
     var hasSapisid: Bool { webKitManager.sapisid != nil }
 
-    init(webKitManager: WebKitManager) {
+    init(webKitManager: WebKitManager, authService: AuthService) {
         self.webKitManager = webKitManager
+        self.authService = authService
         let config = URLSessionConfiguration.default
         config.urlCache = URLCache(memoryCapacity: 10_000_000, diskCapacity: 50_000_000)
         self.session = URLSession(configuration: config)
@@ -276,15 +278,18 @@ final class YTMusicClient {
         request.setValue("0", forHTTPHeaderField: "X-Goog-AuthUser")
 
         // Full cookie + SAPISIDHASH authentication (kaset pattern: send matching cookies)
-        if let authHeaders = await webKitManager.currentAuthHeaders() {
-            let sapisid = authHeaders.sapisid
-            let hash = generateSAPISIDHash(sapisid: sapisid)
-            request.setValue("SAPISIDHASH \(hash)", forHTTPHeaderField: "Authorization")
-            if let cookieHeader = authHeaders.cookieHeader {
-                request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-            } else {
-                request.setValue("SAPISID=\(sapisid)", forHTTPHeaderField: "Cookie")
-            }
+        guard let authHeaders = await webKitManager.currentAuthHeaders() else {
+            authService.sessionExpired()
+            throw YTMusicError.authExpired
+        }
+
+        let sapisid = authHeaders.sapisid
+        let hash = generateSAPISIDHash(sapisid: sapisid)
+        request.setValue("SAPISIDHASH \(hash)", forHTTPHeaderField: "Authorization")
+        if let cookieHeader = authHeaders.cookieHeader {
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        } else {
+            request.setValue("SAPISID=\(sapisid)", forHTTPHeaderField: "Cookie")
         }
 
         // Build body
@@ -300,6 +305,7 @@ final class YTMusicClient {
         }
 
         if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            authService.sessionExpired()
             throw YTMusicError.authExpired
         }
 
@@ -352,6 +358,38 @@ enum YTMusicError: Error, LocalizedError {
         case .authExpired: return "Authentication expired"
         case .notFound: return "Content not found"
         }
+    }
+
+    var userFacingMessage: String {
+        switch self {
+        case .authExpired:
+            return "Your session expired. Sign in again to keep listening."
+        case .requestFailed:
+            return "Couldn't reach YouTube Music. Check your connection and try again."
+        case .parseFailed:
+            return "YouTube Music returned something unexpected. Try again."
+        case .notFound:
+            return "That content is no longer available."
+        }
+    }
+}
+
+extension Error {
+    var userFacingMessage: String {
+        if let ytMusicError = self as? YTMusicError {
+            return ytMusicError.userFacingMessage
+        }
+
+        if let urlError = self as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost, .timedOut:
+                return "You're offline. Reconnect and try again."
+            default:
+                return "Couldn't reach YouTube Music. Check your connection and try again."
+            }
+        }
+
+        return "Something went wrong. Try again."
     }
 }
 
