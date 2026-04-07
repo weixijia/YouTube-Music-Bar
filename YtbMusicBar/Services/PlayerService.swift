@@ -42,7 +42,6 @@ final class PlayerService {
     private var lyricsSyncReasons: Set<String> = []
     private var statusLyricLines: [String] = []
     private var statusLyricTimestampsMs: [Int] = []
-    private let lyricDisplayLeadMs = 350
 
     init(playerWebView: SingletonPlayerWebView) {
         self.playerWebView = playerWebView
@@ -308,8 +307,7 @@ final class PlayerService {
             return
         }
 
-        let displayTimeMs = currentTimeMs + lyricDisplayLeadMs
-        guard let firstTimestamp = statusLyricTimestampsMs.first, displayTimeMs >= firstTimestamp else {
+        guard let firstTimestamp = statusLyricTimestampsMs.first, currentTimeMs >= firstTimestamp else {
             clearCurrentLyricLine()
             return
         }
@@ -317,7 +315,7 @@ final class PlayerService {
         var lo = 0, hi = statusLyricTimestampsMs.count - 1
         while lo < hi {
             let mid = (lo + hi + 1) / 2
-            if statusLyricTimestampsMs[mid] <= displayTimeMs {
+            if statusLyricTimestampsMs[mid] <= currentTimeMs {
                 lo = mid
             } else {
                 hi = mid - 1

@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hiddenWindow: NSWindow?
     private var wasPlayingBeforeSleep = false
     private var statusLyricsTask: Task<Void, Never>?
+    private var statusLyricsRequestedVideoId: String?
 
     // Scrolling text in the single status item
     private var scrollTimer: Timer?
@@ -54,7 +55,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         playerService.onTrackChanged = { [weak self] track in
             self?.notificationService.notifyTrackChange(track: track)
             self?.updateStatusBar()
-            self?.loadStatusLyrics(for: track)
         }
         playerService.onLyricLineChanged = { [weak self] _ in
             self?.updateStatusBar()
@@ -120,11 +120,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func loadStatusLyrics(for track: Track) {
         statusLyricsTask?.cancel()
         guard !track.videoId.isEmpty else {
+            statusLyricsRequestedVideoId = nil
             playerService.clearStatusLyrics()
             return
         }
 
         let videoId = track.videoId
+        statusLyricsRequestedVideoId = videoId
         statusLyricsTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -136,6 +138,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.playerService.clearStatusLyrics()
             }
         }
+    }
+
+    private func loadStatusLyricsIfNeeded(for track: Track) {
+        guard !track.videoId.isEmpty else {
+            if statusLyricsRequestedVideoId != nil {
+                statusLyricsRequestedVideoId = nil
+                playerService.clearStatusLyrics()
+            }
+            return
+        }
+
+        guard statusLyricsRequestedVideoId != track.videoId else { return }
+        loadStatusLyrics(for: track)
     }
 
     // MARK: - Status Item (single item: icon + optional scrolling text)
@@ -179,6 +194,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             lastScrollTextKey = ""
             return
         }
+
+        loadStatusLyricsIfNeeded(for: track)
 
         // Playing → prefer synced lyric line when available, otherwise show track info.
         let lyricLine = playerService.currentLyricLine
