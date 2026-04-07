@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ytb_Music_Bar
+@testable import YouTube_Music_Bar
 
 final class PlaybackStateTests: XCTestCase {
 

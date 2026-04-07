@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct YtbMusicBarApp: App {
+struct YouTubeMusicBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {

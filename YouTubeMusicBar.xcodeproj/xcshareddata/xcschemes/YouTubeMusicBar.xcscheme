@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "1600"
-   version = "1.3">
+   version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
-      buildImplicitDependencies = "YES">
+      buildImplicitDependencies = "YES"
+      runPostActionsOnFailure = "NO">
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
@@ -14,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "3B63EA7FFB6D238357EFAAFA"
-               BuildableName = "Ytb Music Bar.app"
-               BlueprintName = "YtbMusicBar"
-               ReferencedContainer = "container:YtbMusicBar.xcodeproj">
+               BlueprintIdentifier = "0F5936D7A22613A356458092"
+               BuildableName = "YouTubeMusicBar.app"
+               BlueprintName = "YouTubeMusicBar"
+               ReferencedContainer = "container:YouTubeMusicBar.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -26,14 +27,15 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES">
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      onlyGenerateCoverageForSpecifiedTargets = "NO">
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "3B63EA7FFB6D238357EFAAFA"
-            BuildableName = "Ytb Music Bar.app"
-            BlueprintName = "YtbMusicBar"
-            ReferencedContainer = "container:YtbMusicBar.xcodeproj">
+            BlueprintIdentifier = "0F5936D7A22613A356458092"
+            BuildableName = "YouTubeMusicBar.app"
+            BlueprintName = "YouTubeMusicBar"
+            ReferencedContainer = "container:YouTubeMusicBar.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -42,13 +44,15 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "70EB3A09AF467F287967E506"
-               BuildableName = "YtbMusicBarTests.xctest"
-               BlueprintName = "YtbMusicBarTests"
-               ReferencedContainer = "container:YtbMusicBar.xcodeproj">
+               BlueprintIdentifier = "3BF4D609C840DE591FB29FFC"
+               BuildableName = "YouTubeMusicBarTests.xctest"
+               BlueprintName = "YouTubeMusicBarTests"
+               ReferencedContainer = "container:YouTubeMusicBar.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
+      <CommandLineArguments>
+      </CommandLineArguments>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -64,12 +68,14 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "3B63EA7FFB6D238357EFAAFA"
-            BuildableName = "Ytb Music Bar.app"
-            BlueprintName = "YtbMusicBar"
-            ReferencedContainer = "container:YtbMusicBar.xcodeproj">
+            BlueprintIdentifier = "0F5936D7A22613A356458092"
+            BuildableName = "YouTubeMusicBar.app"
+            BlueprintName = "YouTubeMusicBar"
+            ReferencedContainer = "container:YouTubeMusicBar.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+      </CommandLineArguments>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -81,12 +87,14 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "3B63EA7FFB6D238357EFAAFA"
-            BuildableName = "Ytb Music Bar.app"
-            BlueprintName = "YtbMusicBar"
-            ReferencedContainer = "container:YtbMusicBar.xcodeproj">
+            BlueprintIdentifier = "0F5936D7A22613A356458092"
+            BuildableName = "YouTubeMusicBar.app"
+            BlueprintName = "YouTubeMusicBar"
+            ReferencedContainer = "container:YouTubeMusicBar.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+      </CommandLineArguments>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

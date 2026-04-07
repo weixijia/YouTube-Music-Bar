@@ -1,6 +1,6 @@
-name: YtbMusicBar
+name: YouTubeMusicBar
 options:
-  bundleIdPrefix: com.ytbmusicbar
+  bundleIdPrefix: com.youtubemusicbar
   deploymentTarget:
     macOS: "14.0"
   xcodeVersion: "16.0"
@@ -13,46 +13,46 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
 
 targets:
-  YtbMusicBar:
+  YouTubeMusicBar:
     type: application
     platform: macOS
     sources:
-      - path: YtbMusicBar
+      - path: YouTubeMusicBar
         excludes:
           - "Resources/Info.plist"
-          - "Resources/YtbMusicBar.entitlements"
+          - "Resources/YouTubeMusicBar.entitlements"
     info:
-      path: YtbMusicBar/Resources/Info.plist
+      path: YouTubeMusicBar/Resources/Info.plist
       properties:
         LSUIElement: true
         CFBundleShortVersionString: "0.2.0"
         CFBundleVersion: "2"
     entitlements:
-      path: YtbMusicBar/Resources/YtbMusicBar.entitlements
+      path: YouTubeMusicBar/Resources/YouTubeMusicBar.entitlements
       properties:
         com.apple.security.network.client: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ytbmusicbar.app
-        PRODUCT_NAME: "Ytb Music Bar"
-        INFOPLIST_FILE: YtbMusicBar/Resources/Info.plist
-        CODE_SIGN_ENTITLEMENTS: YtbMusicBar/Resources/YtbMusicBar.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.youtubemusicbar.app
+        PRODUCT_NAME: "YouTube Music Bar"
+        INFOPLIST_FILE: YouTubeMusicBar/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: YouTubeMusicBar/Resources/YouTubeMusicBar.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: false
         ENABLE_HARDENED_RUNTIME: true
     dependencies: []
     scheme:
       testTargets:
-        - YtbMusicBarTests
+        - YouTubeMusicBarTests
 
-  YtbMusicBarTests:
+  YouTubeMusicBarTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: YtbMusicBarTests
+      - path: YouTubeMusicBarTests
     settings:
       base:
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Ytb Music Bar.app/Contents/MacOS/Ytb Music Bar"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/YouTube Music Bar.app/Contents/MacOS/YouTube Music Bar"
         GENERATE_INFOPLIST_FILE: true
     dependencies:
-      - target: YtbMusicBar
+      - target: YouTubeMusicBar
