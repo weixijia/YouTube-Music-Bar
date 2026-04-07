@@ -60,4 +60,31 @@ final class ParsersTests: XCTestCase {
         XCTAssertEqual(tracks.first?.artist, "Next Artist")
         XCTAssertEqual(tracks.first?.videoId, "xyz123")
     }
+
+    func testTimedLyricsParserSupportsKasetShape() {
+        let json: [String: Any] = [
+            "contents": [
+                "timedLyricsModel": [
+                    "lyricsData": [
+                        [
+                            "lyricLine": "First line",
+                            "startTimeMs": "1200",
+                            "durationMs": "3000"
+                        ],
+                        [
+                            "lyricLine": "Second line",
+                            "startTimeMs": "4200",
+                            "durationMs": "2500"
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+        let result = LyricsParser.extractTimedLyrics(from: json)
+        XCTAssertEqual(result?.lines.count, 2)
+        XCTAssertEqual(result?.lines.first?.text, "First line")
+        XCTAssertEqual(result?.lines.first?.startTimeMs, 1200)
+        XCTAssertTrue(result?.isSynced == true)
+    }
 }

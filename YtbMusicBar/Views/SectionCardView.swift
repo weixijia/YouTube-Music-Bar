@@ -17,6 +17,8 @@ struct SectionCardView: View {
                 // Thumbnail
                 CachedAsyncImage(url: thumbnailURL, cornerRadius: 8)
                     .frame(width: 140, height: 140)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay {
                         if isHovered {
                             ZStack {

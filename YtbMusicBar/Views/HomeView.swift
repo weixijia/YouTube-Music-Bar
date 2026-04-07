@@ -299,11 +299,15 @@ private struct CompactCard: View {
             HStack(spacing: 8) {
                 CachedAsyncImage(url: item.thumbnailURL, cornerRadius: 6)
                     .frame(width: 44, height: 44)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .layoutPriority(1)
 
                 Text(item.title)
                     .font(.caption)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(2)
             }
             .padding(4)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,6 +334,8 @@ private struct SmallCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 CachedAsyncImage(url: item.thumbnailURL, cornerRadius: 6)
                     .frame(width: 110, height: 110)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                     .overlay {
                         if isHovering {
                             ZStack {

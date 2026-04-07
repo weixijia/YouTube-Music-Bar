@@ -22,6 +22,7 @@
     const THROTTLE_MS = 500;
     let pollInterval = null;
     let currentVideoElement = null;
+    let lyricsPollId = null;
 
     function querySelector(primary, fallback) {
         return document.querySelector(primary) || (fallback ? document.querySelector(fallback) : null);
@@ -172,6 +173,23 @@
             window.webkit.messageHandlers.trackEnded.postMessage({});
         } catch (e) {}
     }
+
+    window.startLyricsPoll = function() {
+        if (lyricsPollId) return;
+        lyricsPollId = setInterval(() => {
+            const video = document.querySelector(SELECTORS.video);
+            if (!video) return;
+            try {
+                window.webkit.messageHandlers.lyricsTime.postMessage({ time: video.currentTime });
+            } catch (e) {}
+        }, 100);
+    };
+
+    window.stopLyricsPoll = function() {
+        if (!lyricsPollId) return;
+        clearInterval(lyricsPollId);
+        lyricsPollId = null;
+    };
 
     // Attach listeners to a video element
     function attachVideoListeners(video) {

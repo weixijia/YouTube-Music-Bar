@@ -9,11 +9,13 @@ final class SingletonPlayerWebView: NSObject {
 
     let webView: WKWebView
     private let webKitManager: WebKitManager
+    private var lyricsPollRequested = false
 
     // Callbacks
     var onStateUpdate: ((TrackState) -> Void)?
     var onTrackEnded: (() -> Void)?
     var onAuthCookieDetected: (() -> Void)?
+    var onLyricsTimeUpdate: ((Double) -> Void)?
 
     /// Parsed state from JavaScript observer.
     struct TrackState: Sendable {
@@ -52,7 +54,7 @@ final class SingletonPlayerWebView: NSObject {
         injectScripts()
 
         // Register message handlers
-        let handlers = ["observer", "trackEnded"]
+        let handlers = ["observer", "trackEnded", "lyricsTime"]
         for handler in handlers {
             config.userContentController.add(self, name: handler)
         }
@@ -101,6 +103,16 @@ final class SingletonPlayerWebView: NSObject {
 
     func evaluateJSFire(_ script: String) {
         webView.evaluateJavaScript(script) { _, _ in }
+    }
+
+    func startLyricsPoll() {
+        lyricsPollRequested = true
+        evaluateJSFire("if (window.startLyricsPoll) { window.startLyricsPoll(); }")
+    }
+
+    func stopLyricsPoll() {
+        lyricsPollRequested = false
+        evaluateJSFire("if (window.stopLyricsPoll) { window.stopLyricsPoll(); }")
     }
 
     // MARK: - Setup
@@ -175,6 +187,11 @@ extension SingletonPlayerWebView: WKScriptMessageHandler {
         case "trackEnded":
             onTrackEnded?()
 
+        case "lyricsTime":
+            guard let dict = message.body as? [String: Any],
+                  let time = dict["time"] as? Double else { return }
+            onLyricsTimeUpdate?(time)
+
         default:
             break
         }
@@ -188,6 +205,9 @@ extension SingletonPlayerWebView: WKNavigationDelegate {
         // Save cookies after each navigation
         Task {
             await webKitManager.saveCookies(from: webView.configuration.websiteDataStore)
+        }
+        if lyricsPollRequested {
+            startLyricsPoll()
         }
     }
 

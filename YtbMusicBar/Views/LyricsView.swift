@@ -42,6 +42,18 @@ struct LyricsOverlay: View {
         .onChange(of: playerService.track.videoId) {
             Task { await loadLyrics() }
         }
+        .onChange(of: isSynced) { _, synced in
+            synced ? playerService.startLyricsSync() : playerService.stopLyricsSync()
+        }
+        .onAppear {
+            if isSynced {
+                playerService.startLyricsSync()
+                updateCurrentLine()
+            }
+        }
+        .onDisappear {
+            playerService.stopLyricsSync()
+        }
     }
 
     // MARK: - Lyrics Content
@@ -69,12 +81,19 @@ struct LyricsOverlay: View {
                 .padding(.horizontal, 12)
             }
             .onChange(of: currentLineIndex) { _, newIndex in
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
                     proxy.scrollTo(newIndex, anchor: .center)
                 }
             }
+            .onChange(of: playerService.currentTimeMs) { _, _ in
+                if isSynced {
+                    updateCurrentLine()
+                }
+            }
             .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
-                updateCurrentLine()
+                if !isSynced {
+                    updateCurrentLine()
+                }
             }
         }
     }
@@ -105,7 +124,7 @@ struct LyricsOverlay: View {
         let newIndex: Int
         if isSynced && !lineTimestamps.isEmpty {
             // Synced: binary search on timestamps
-            let currentTime = playerService.track.currentTime
+            let currentTime = Double(playerService.currentTimeMs) / 1000.0
             var lo = 0, hi = lineTimestamps.count - 1
             while lo < hi {
                 let mid = (lo + hi + 1) / 2
@@ -133,18 +152,19 @@ struct LyricsOverlay: View {
 
     private func loadLyrics() async {
         let videoId = playerService.track.videoId
-        guard !videoId.isEmpty else {
-            error = "No track"
-            isLoading = false
-            return
-        }
-
         isLoading = true
         lines = []
         lineTimestamps = []
         currentLineIndex = 0
         isSynced = false
         error = nil
+        source = ""
+
+        guard !videoId.isEmpty else {
+            error = "No track"
+            isLoading = false
+            return
+        }
 
         defer { isLoading = false }
 

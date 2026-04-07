@@ -657,17 +657,32 @@ enum LyricsParser {
     // Recursively searches for timedLyricsModel embedded in the response
 
     static func extractTimedLyrics(from json: [String: Any]) -> LyricsResult? {
-        guard let lyricsData = findValue(for: "timedLyricsModel", in: json) as? [String: Any],
-              let lyrics = lyricsData["lyricsData"] as? [String: Any],
-              let lines = lyrics["timedLyricsData"] as? [[String: Any]]
-        else { return nil }
+        guard let timedLyricsModel = findValue(for: "timedLyricsModel", in: json) as? [String: Any] else {
+            return nil
+        }
+
+        let lines: [[String: Any]]
+        if let directLines = timedLyricsModel["lyricsData"] as? [[String: Any]] {
+            // Current YouTube Music shape used by kaset.
+            lines = directLines
+        } else if let lyricsData = timedLyricsModel["lyricsData"] as? [String: Any],
+                  let nestedLines = lyricsData["timedLyricsData"] as? [[String: Any]] {
+            // Older nested shape.
+            lines = nestedLines
+        } else if let nestedLines = timedLyricsModel["timedLyricsData"] as? [[String: Any]] {
+            lines = nestedLines
+        } else {
+            return nil
+        }
 
         var result: [LyricsLine] = []
         for line in lines {
             let text = line["lyricLine"] as? String ?? ""
-            let startMs = (line["startTimeMs"] as? String).flatMap { Int($0) }
-                ?? line["startTimeMs"] as? Int
-            let _ = (line["durationMs"] as? String).flatMap { Int($0) }
+            let cueRange = line["cueRange"] as? [String: Any]
+            let startMs = intValue(line["startTimeMs"])
+                ?? intValue(line["startTimeMilliseconds"])
+                ?? intValue(cueRange?["startTimeMilliseconds"])
+            guard let startMs else { continue }
             result.append(LyricsLine(text: text, startTimeMs: startMs))
         }
 
@@ -727,6 +742,16 @@ enum LyricsParser {
             for item in array {
                 if let found = findValue(for: key, in: item, matching: matching) { return found }
             }
+        }
+        return nil
+    }
+
+    private static func intValue(_ value: Any?) -> Int? {
+        if let int = value as? Int {
+            return int
+        }
+        if let string = value as? String {
+            return Int(string)
         }
         return nil
     }

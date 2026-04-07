@@ -37,6 +37,8 @@ struct SongRowView: View {
             HStack(spacing: 12) {
                 CachedAsyncImage(url: thumbnailURL, cornerRadius: 6)
                     .frame(width: 48, height: 48)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)

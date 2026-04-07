@@ -14,6 +14,8 @@ final class PlayerService {
     var isShuffle: Bool = false
     var repeatMode: RepeatMode = .off
     var albumArtImage: NSImage?
+    /// High-resolution playback time in milliseconds, updated at ~10Hz while synced lyrics are visible.
+    var currentTimeMs: Int = 0
 
     // MARK: - Queue
 
@@ -43,6 +45,9 @@ final class PlayerService {
         }
         playerWebView.onTrackEnded = { [weak self] in
             self?.handleTrackEnded()
+        }
+        playerWebView.onLyricsTimeUpdate = { [weak self] time in
+            self?.handleLyricsTimeUpdate(time)
         }
 
         restoreState()
@@ -94,6 +99,14 @@ final class PlayerService {
     func cycleRepeat() {
         repeatMode = repeatMode.next
         playerWebView.evaluateJSFire("ytmCycleRepeat()")
+    }
+
+    func startLyricsSync() {
+        playerWebView.startLyricsPoll()
+    }
+
+    func stopLyricsSync() {
+        playerWebView.stopLyricsPoll()
     }
 
     func toggleLike() {
@@ -191,6 +204,7 @@ final class PlayerService {
         track.albumTitle = state.albumTitle
         track.duration = state.duration
         track.currentTime = state.currentTime
+        currentTimeMs = Int(state.currentTime * 1000)
         track.isLiked = state.isLiked
 
         if let url = URL(string: state.albumArt), !state.albumArt.isEmpty {
@@ -223,6 +237,11 @@ final class PlayerService {
         if queueIndex < queue.count - 1 {
             queueIndex += 1
         }
+    }
+
+    private func handleLyricsTimeUpdate(_ time: Double) {
+        currentTimeMs = Int(time * 1000)
+        track.currentTime = time
     }
 
     private func loadAlbumArt(from url: URL) {
