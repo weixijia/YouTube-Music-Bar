@@ -2,8 +2,9 @@ import SwiftUI
 import ServiceManagement
 
 struct SettingsView: View {
+    @Environment(AuthService.self) private var authService
     @AppStorage("launchAtLogin") private var launchAtLogin = false
-    @AppStorage("showNotifications") private var showNotifications = true
+    @AppStorage("showNotifications") private var showNotifications = false
 
     var body: some View {
         TabView {
@@ -40,6 +41,10 @@ struct SettingsView: View {
 
             Section("Notifications") {
                 Toggle("Show track change notifications", isOn: $showNotifications)
+                    .onChange(of: showNotifications) { _, enabled in
+                        guard enabled, let delegate = NSApp.delegate as? AppDelegate else { return }
+                        delegate.notificationService.requestPermission()
+                    }
             }
 
             Section("Cache") {
@@ -68,9 +73,9 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading) {
-                        Text("Signed In")
+                        Text(authService.state.isLoggedIn ? "Signed In" : "Signed Out")
                             .font(.callout)
-                        Text("via Google Account")
+                        Text(authService.state.isLoggedIn ? "via Google Account" : "Sign in from the main panel")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -82,6 +87,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .disabled(!authService.state.isLoggedIn)
                 }
             }
         }

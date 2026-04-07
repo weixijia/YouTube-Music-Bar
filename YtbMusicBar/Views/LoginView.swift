@@ -17,8 +17,9 @@ struct LoginView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 Spacer()
-                Text("Sign in to YouTube Music")
+                Text(authService.needsReauth ? "Session expired — sign in again" : "Sign in to YouTube Music")
                     .font(.caption.bold())
+                    .multilineTextAlignment(.center)
                 Spacer()
                 Color.clear.frame(width: 50, height: 1)
             }

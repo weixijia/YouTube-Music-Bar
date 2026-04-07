@@ -32,7 +32,7 @@ struct MainPanelView: View {
                 mainContent
             }
         }
-        .frame(width: 320, height: 540)
+        .frame(width: 320, height: 480)
         .background {
             if #available(macOS 26, *) {
                 Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 12))
@@ -141,10 +141,12 @@ struct MainPanelView: View {
                 Text("YouTube Music")
                     .font(.title2.bold())
 
-                Text("Sign in to start listening")
+                Text(authService.needsReauth ? "Your session expired. Sign in again to keep listening." : "Sign in to start listening")
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
 
-                Button("Sign In") {
+                Button(authService.needsReauth ? "Sign In Again" : "Sign In") {
                     authService.startLogin()
                 }
                 .buttonStyle(.borderedProminent)
@@ -154,7 +156,7 @@ struct MainPanelView: View {
 
         case .loggingIn:
             LoginView()
-                .frame(width: 320, height: 540)
+                .frame(width: 320, height: 480)
 
         case .loggedIn:
             EmptyView()
