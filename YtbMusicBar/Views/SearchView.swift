@@ -131,7 +131,7 @@ struct SearchView: View {
             do {
                 results = try await apiClient.search(query: query, filter: selectedFilter)
             } catch {
-                print("[Search] Error: \(error)")
+                results = []
             }
         }
     }
@@ -147,9 +147,11 @@ struct SearchResultRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 10) {
-                // Thumbnail
                 CachedAsyncImage(url: result.thumbnailURL, cornerRadius: 6)
                     .frame(width: 44, height: 44)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .layoutPriority(1)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(result.title)
@@ -161,11 +163,12 @@ struct SearchResultRow: View {
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(2)
 
-                // Type indicator
                 Image(systemName: typeIcon)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                    .frame(width: 14)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)

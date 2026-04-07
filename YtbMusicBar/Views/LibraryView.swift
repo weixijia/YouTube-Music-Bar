@@ -293,12 +293,10 @@ struct CollectionView: View {
         isLoading = true
         defer { isLoading = false }
 
-        print("[Collection] loadLibrary called, authenticated=\(apiClient.hasSapisid)")
         do {
             playlists = try await apiClient.getLibraryPlaylists()
-            print("[Collection] Loaded \(playlists.count) playlists")
         } catch {
-            print("[Collection] Error loading playlists: \(error)")
+            playlists = []
         }
     }
 
@@ -306,15 +304,14 @@ struct CollectionView: View {
         isLoading = true
         defer { isLoading = false }
 
-        print("[Collection] loadLikedSongs called")
         do {
             let (songs, token) = try await apiClient.getLikedSongs()
-            print("[Collection] Loaded \(songs.count) liked songs, hasMore=\(token != nil)")
             var seen = Set<String>()
             likedSongs = songs.filter { seen.insert($0.videoId).inserted }
             hasMoreLiked = token != nil
         } catch {
-            print("[Collection] Error loading liked songs: \(error)")
+            likedSongs = []
+            hasMoreLiked = false
         }
     }
 
@@ -331,7 +328,7 @@ struct CollectionView: View {
                 likedSongs.append(contentsOf: newSongs)
                 hasMoreLiked = token != nil
             } catch {
-                print("[Collection] Error loading more: \(error)")
+                hasMoreLiked = false
             }
         }
     }
@@ -347,7 +344,6 @@ struct CollectionView: View {
                 let detail = try await apiClient.playlistDetails(id: browseId)
                 detailTracks = detail.tracks
             } catch {
-                print("[Collection] Error loading \(title): \(error)")
                 detailTracks = []
             }
         }

@@ -307,7 +307,6 @@ enum PlaylistParser {
 
         // Try multiple response layout paths (like kaset)
         let sectionContents = findSectionContents(json)
-        print("[PlaylistParser] Found \(sectionContents.count) sections")
 
         // Collect all sections to parse — unwrap itemSectionRenderer wrappers (kaset pattern)
         var allSections: [[String: Any]] = []
@@ -523,10 +522,7 @@ enum LibraryParser {
         var playlists: [LibraryPlaylist] = []
 
         let sections = extractSections(from: data)
-        print("[LibraryParser] Found \(sections.count) sections")
         for section in sections {
-            let keys = Array(section.keys)
-            print("[LibraryParser] Section keys: \(keys)")
             // gridRenderer — kaset's primary path for library items
             if let grid = section["gridRenderer"] as? [String: Any],
                let items = grid["items"] as? [[String: Any]] {
@@ -552,18 +548,7 @@ enum LibraryParser {
             // itemSectionRenderer — kaset handles this as a wrapper with nested renderers
             if let wrapper = section["itemSectionRenderer"] as? [String: Any],
                let innerContents = wrapper["contents"] as? [[String: Any]] {
-                print("[LibraryParser] itemSectionRenderer has \(innerContents.count) inner items")
                 for inner in innerContents {
-                    let innerKeys = Array(inner.keys)
-                    print("[LibraryParser] Inner item keys: \(innerKeys)")
-
-                    // Dump messageRenderer to see what YouTube says
-                    if let msg = inner["messageRenderer"] as? [String: Any] {
-                        let text = msg.dig("text", "runs") as? [[String: Any]]
-                        let msgText = text?.compactMap { $0["text"] as? String }.joined() ?? "no text"
-                        print("[LibraryParser] messageRenderer text: \(msgText)")
-                    }
-
                     // musicShelfRenderer inside itemSectionRenderer
                     if let shelf = inner["musicShelfRenderer"] as? [String: Any],
                        let items = shelf["contents"] as? [[String: Any]] {
