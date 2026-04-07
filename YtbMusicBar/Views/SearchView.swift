@@ -9,6 +9,7 @@ struct SearchView: View {
     @State private var isSearching = false
     @State private var selectedFilter: SearchFilter = .all
     @State private var searchTask: Task<Void, Never>?
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,7 +19,7 @@ struct SearchView: View {
                     .foregroundStyle(.secondary)
                     .font(.caption)
 
-                TextField("Search songs, artists, albums...", text: $query)
+                TextField("Search songs, albums, playlists...", text: $query)
                     .textFieldStyle(.plain)
                     .font(.callout)
                     .onSubmit { performSearch() }
@@ -30,6 +31,7 @@ struct SearchView: View {
                     Button {
                         query = ""
                         results = []
+                        errorMessage = nil
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.tertiary)
@@ -55,10 +57,10 @@ struct SearchView: View {
             // Filter chips
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach([SearchFilter.all, .songs, .albums, .artists, .playlists], id: \.rawValue) { filter in
+                    ForEach([SearchFilter.all, .songs, .albums, .playlists], id: \.rawValue) { filter in
                         FilterChip(title: filter.rawValue.capitalized, isSelected: selectedFilter == filter) {
                             selectedFilter = filter
-                            if !query.isEmpty { performSearch() }
+                            if !query.isEmpty { scheduleImmediateSearch() }
                         }
                     }
                 }
@@ -72,34 +74,23 @@ struct SearchView: View {
             if isSearching {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let errorMessage, results.isEmpty && !query.isEmpty {
+                statusView(
+                    icon: "exclamationmark.triangle",
+                    title: errorMessage,
+                    buttonTitle: "Try Again",
+                    action: performSearch
+                )
             } else if results.isEmpty && !query.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-                    Text("No results found")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                statusView(icon: "music.note.list", title: "No results found")
             } else if results.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-                    Text("Search YouTube Music")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                statusView(icon: "magnifyingglass", title: "Search YouTube Music")
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(results) { result in
                             SearchResultRow(result: result) {
-                                if let videoId = result.videoId {
-                                    playerService.play(videoId: videoId)
-                                }
+                                handleResultTap(result)
                             }
                         }
                     }
@@ -114,26 +105,85 @@ struct SearchView: View {
         searchTask?.cancel()
         guard !newQuery.isEmpty else {
             results = []
+            isSearching = false
+            errorMessage = nil
             return
         }
         searchTask = Task {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
-            performSearch()
+            await performSearch(query: newQuery, filter: selectedFilter)
+        }
+    }
+
+    private func scheduleImmediateSearch() {
+        searchTask?.cancel()
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return }
+        let filter = selectedFilter
+        searchTask = Task {
+            await performSearch(query: trimmedQuery, filter: filter)
         }
     }
 
     private func performSearch() {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        Task {
-            isSearching = true
-            defer { isSearching = false }
-            do {
-                results = try await apiClient.search(query: query, filter: selectedFilter)
-            } catch {
-                results = []
+        scheduleImmediateSearch()
+    }
+
+    private func performSearch(query: String, filter: SearchFilter) async {
+        guard !query.isEmpty else { return }
+        isSearching = true
+        errorMessage = nil
+        defer {
+            if self.query.trimmingCharacters(in: .whitespacesAndNewlines) == query && self.selectedFilter == filter {
+                isSearching = false
             }
         }
+
+        do {
+            let fetchedResults = try await apiClient.search(query: query, filter: filter)
+            guard !Task.isCancelled,
+                  self.query.trimmingCharacters(in: .whitespacesAndNewlines) == query,
+                  self.selectedFilter == filter else { return }
+            errorMessage = nil
+            results = fetchedResults.filter { $0.resultType != .artist }
+        } catch {
+            guard !Task.isCancelled,
+                  self.query.trimmingCharacters(in: .whitespacesAndNewlines) == query,
+                  self.selectedFilter == filter else { return }
+            errorMessage = error.userFacingMessage
+            results = []
+        }
+    }
+
+    private func handleResultTap(_ result: SearchResult) {
+        switch result.resultType {
+        case .song, .playlist, .album:
+            Task {
+                await playerService.play(searchResult: result, apiClient: apiClient, source: .search)
+            }
+        case .artist, .other:
+            return
+        }
+    }
+
+    private func statusView(icon: String, title: String, buttonTitle: String? = nil, action: (() -> Void)? = nil) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 32))
+                .foregroundStyle(.tertiary)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            if let buttonTitle, let action {
+                Button(buttonTitle, action: action)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

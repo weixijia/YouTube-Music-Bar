@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var sections: [BrowseSection] = []
     @State private var isLoading = false
     @State private var hasError = false
+    @State private var errorMessage = "Couldn't load your feed"
     @State private var visibleSectionCount = 2 // Start with just 2 sections visible
 
     var body: some View {
@@ -189,6 +190,15 @@ struct HomeView: View {
             Text("Couldn't load your feed")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            if errorMessage != "Couldn't load your feed" {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
             Button("Try Again") {
                 sections = []
                 Task { await loadHome() }
@@ -227,41 +237,10 @@ struct HomeView: View {
     }
 
     private func playItem(_ item: SearchResult) {
-        guard let id = item.videoId else { return }
-
         switch item.resultType {
-        case .song:
-            playerService.play(videoId: id)
-        case .playlist:
-            // For mixes (RD*, RDAMVM*) and playlists: try to get first track via API,
-            // or navigate WebView to play the playlist directly
-            if id.hasPrefix("RD") || id.hasPrefix("PL") {
-                // Radio/mix playlist — play via WebView navigation with playlist param
-                playerService.playPlaylist(id: id)
-            } else {
-                // Browse playlist for tracks
-                Task {
-                    do {
-                        let detail = try await apiClient.playlistDetails(id: id)
-                        if let first = detail.tracks.first {
-                            playerService.play(videoId: first.videoId)
-                        }
-                    } catch {
-                        // Fallback: try playing as playlist via WebView
-                        playerService.playPlaylist(id: id)
-                    }
-                }
-            }
-        case .album:
+        case .song, .playlist, .album:
             Task {
-                do {
-                    let detail = try await apiClient.playlistDetails(id: id)
-                    if let first = detail.tracks.first {
-                        playerService.play(videoId: first.videoId)
-                    }
-                } catch {
-                    print("[Home] Error browsing album \(id): \(error)")
-                }
+                await playerService.play(searchResult: item, apiClient: apiClient, source: .home)
             }
         default:
             break
@@ -272,6 +251,7 @@ struct HomeView: View {
         guard sections.isEmpty else { return }
         isLoading = true
         hasError = false
+        errorMessage = "Couldn't load your feed"
         defer { isLoading = false }
 
         do {
@@ -282,6 +262,7 @@ struct HomeView: View {
             }
         } catch {
             hasError = true
+            errorMessage = error.userFacingMessage
             print("[Home] Error: \(error)")
         }
     }
