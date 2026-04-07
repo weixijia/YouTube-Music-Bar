@@ -5,15 +5,15 @@ This is the practical release workflow for **YouTube Music Bar**. It covers the 
 ## Current project facts
 
 - Public name: `YouTube Music Bar`
-- Product name in the current Xcode project: `Ytb Music Bar`
-- Scheme: `YtbMusicBar`
-- Project: `YtbMusicBar.xcodeproj`
+- Product name in the current Xcode project: `YouTube Music Bar`
+- Scheme: `YouTubeMusicBar`
+- Project: `YouTubeMusicBar.xcodeproj`
 - Deployment target: macOS 14.0+
 - Current version: `0.2.0`
 - Current build number: `2`
-- App bundle identifier: `com.ytbmusicbar.app`
+- App bundle identifier: `com.youtubemusicbar.app`
 
-The public name is **YouTube Music Bar**. Some internal project files still use the shorter `YtbMusicBar` naming.
+The project, product, and release surface are all unified as **YouTube Music Bar**.
 
 ## Prerequisites
 
@@ -26,24 +26,24 @@ The public name is **YouTube Music Bar**. Some internal project files still use 
 Using the commands below, Xcode places products under a custom DerivedData directory inside the repo:
 
 - Derived data root: `build/DerivedData`
-- Release app bundle: `build/DerivedData/Build/Products/Release/Ytb Music Bar.app`
+- Release app bundle: `build/DerivedData/Build/Products/Release/YouTube Music Bar.app`
 
 If you archive instead of plain building, the archive appears at:
 
-- `build/YtbMusicBar.xcarchive`
+- `build/YouTubeMusicBar.xcarchive`
 
 ## 1. Build a universal release app
 
 The simplest release path is a Release build for macOS with both architectures requested explicitly.
 
 ```bash
-xcodebuild -project YtbMusicBar.xcodeproj -scheme YtbMusicBar -configuration Release -derivedDataPath build/DerivedData -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
+xcodebuild -project YouTubeMusicBar.xcodeproj -scheme YouTubeMusicBar -configuration Release -derivedDataPath build/DerivedData -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
 ```
 
 After a successful build, the app bundle should be here:
 
 ```bash
-build/DerivedData/Build/Products/Release/Ytb Music Bar.app
+build/DerivedData/Build/Products/Release/YouTube Music Bar.app
 ```
 
 ## 2. Verify that the app is universal
@@ -51,7 +51,7 @@ build/DerivedData/Build/Products/Release/Ytb Music Bar.app
 Check the main executable inside the app bundle:
 
 ```bash
-file "build/DerivedData/Build/Products/Release/Ytb Music Bar.app/Contents/MacOS/Ytb Music Bar"
+file "build/DerivedData/Build/Products/Release/YouTube Music Bar.app/Contents/MacOS/YouTube Music Bar"
 ```
 
 Expected output should include both architectures, for example:
@@ -63,7 +63,7 @@ Mach-O universal binary with 2 architectures: [x86_64:...] [arm64:...]
 You can also inspect the slices more directly:
 
 ```bash
-lipo -info "build/DerivedData/Build/Products/Release/Ytb Music Bar.app/Contents/MacOS/Ytb Music Bar"
+lipo -info "build/DerivedData/Build/Products/Release/YouTube Music Bar.app/Contents/MacOS/YouTube Music Bar"
 ```
 
 Expected result:
@@ -77,13 +77,13 @@ Architectures in the fat file: ... are: x86_64 arm64
 If you want an `.xcarchive` as a release artifact before packaging, use:
 
 ```bash
-xcodebuild -project YtbMusicBar.xcodeproj -scheme YtbMusicBar -configuration Release -archivePath build/YtbMusicBar.xcarchive -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO archive
+xcodebuild -project YouTubeMusicBar.xcodeproj -scheme YouTubeMusicBar -configuration Release -archivePath build/YouTubeMusicBar.xcarchive -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO archive
 ```
 
 The archived app bundle will then be located at:
 
 ```bash
-build/YtbMusicBar.xcarchive/Products/Applications/Ytb Music Bar.app
+build/YouTubeMusicBar.xcarchive/Products/Applications/YouTube Music Bar.app
 ```
 
 ## 4. Stage the app for DMG packaging
@@ -95,13 +95,13 @@ mkdir -p build/dmg-root
 ```
 
 ```bash
-ditto "build/DerivedData/Build/Products/Release/Ytb Music Bar.app" "build/dmg-root/Ytb Music Bar.app"
+ditto "build/DerivedData/Build/Products/Release/YouTube Music Bar.app" "build/dmg-root/YouTube Music Bar.app"
 ```
 
 If you prefer packaging from the archive, replace the source path with:
 
 ```bash
-build/YtbMusicBar.xcarchive/Products/Applications/Ytb Music Bar.app
+build/YouTubeMusicBar.xcarchive/Products/Applications/YouTube Music Bar.app
 ```
 
 ## 5. Create a simple DMG with built-in macOS tools
@@ -109,13 +109,13 @@ build/YtbMusicBar.xcarchive/Products/Applications/Ytb Music Bar.app
 This repo does not set up a third-party DMG tool, so the simplest dependency-free approach is `hdiutil`.
 
 ```bash
-hdiutil create -volname "Ytb Music Bar" -srcfolder "build/dmg-root" -ov -format UDZO "build/YtbMusicBar-0.2.0.dmg"
+hdiutil create -volname "YouTube Music Bar" -srcfolder "build/dmg-root" -ov -format UDZO "build/YouTubeMusicBar-0.2.0.dmg"
 ```
 
 That produces a compressed DMG at:
 
 ```bash
-build/YtbMusicBar-0.2.0.dmg
+build/YouTubeMusicBar-0.2.0.dmg
 ```
 
 ## 6. Sanity check the packaged app
@@ -125,7 +125,7 @@ Mount the DMG and confirm the app launches on a clean machine if possible.
 Useful local checks:
 
 ```bash
-spctl -a -vv "build/dmg-root/Ytb Music Bar.app"
+spctl -a -vv "build/dmg-root/YouTube Music Bar.app"
 ```
 
 For an unsigned app, Gatekeeper may report that it is not notarized or not accepted. That is expected unless you add signing and notarization outside this guide.
@@ -133,7 +133,7 @@ For an unsigned app, Gatekeeper may report that it is not notarized or not accep
 You can also inspect the code signature status:
 
 ```bash
-codesign -dv --verbose=4 "build/dmg-root/Ytb Music Bar.app"
+codesign -dv --verbose=4 "build/dmg-root/YouTube Music Bar.app"
 ```
 
 If you are distributing unsigned builds directly, mention that in the release notes.
@@ -145,7 +145,7 @@ If users download an unsigned DMG from the internet, macOS may quarantine the ap
 Document this in the release notes or README:
 
 ```bash
-xattr -cr "/Applications/Ytb Music Bar.app"
+xattr -cr "/Applications/YouTube Music Bar.app"
 ```
 
 ## 8. Suggested release checklist
@@ -166,9 +166,9 @@ Example executable merge:
 
 ```bash
 lipo -create \
-  "path/to/arm64/Ytb Music Bar.app/Contents/MacOS/Ytb Music Bar" \
-  "path/to/x86_64/Ytb Music Bar.app/Contents/MacOS/Ytb Music Bar" \
-  -output "path/to/universal/Ytb Music Bar.app/Contents/MacOS/Ytb Music Bar"
+"path/to/arm64/YouTube Music Bar.app/Contents/MacOS/YouTube Music Bar" \
+"path/to/x86_64/YouTube Music Bar.app/Contents/MacOS/YouTube Music Bar" \
+-output "path/to/universal/YouTube Music Bar.app/Contents/MacOS/YouTube Music Bar"
 ```
 
 If frameworks or helper binaries are ever added later, each Mach-O inside the app bundle must also be verified as universal.
