@@ -7,12 +7,13 @@ struct LyricsOverlay: View {
     @Environment(YTMusicClient.self) private var apiClient
 
     @State private var lines: [String] = []
-    @State private var currentLineIndex: Int = 0
+    @State private var currentLineIndex: Int = -1
     @State private var isLoading = true
     @State private var error: String?
     @State private var source: String = ""
     @State private var lineTimestamps: [TimeInterval] = []
     @State private var isSynced = false
+    private let syncedLyricsDisplayLead: TimeInterval = 0.35
 
     var body: some View {
         ZStack {
@@ -81,6 +82,7 @@ struct LyricsOverlay: View {
                 .padding(.horizontal, 12)
             }
             .onChange(of: currentLineIndex) { _, newIndex in
+                guard newIndex >= 0 else { return }
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
                     proxy.scrollTo(newIndex, anchor: .center)
                 }
@@ -124,20 +126,24 @@ struct LyricsOverlay: View {
         let newIndex: Int
         if isSynced && !lineTimestamps.isEmpty {
             // Synced: binary search on timestamps
-            let currentTime = Double(playerService.currentTimeMs) / 1000.0
-            var lo = 0, hi = lineTimestamps.count - 1
-            while lo < hi {
-                let mid = (lo + hi + 1) / 2
-                if lineTimestamps[mid] <= currentTime { lo = mid } else { hi = mid - 1 }
+            let currentTime = (Double(playerService.currentTimeMs) / 1000.0) + syncedLyricsDisplayLead
+            if let firstTimestamp = lineTimestamps.first, currentTime < firstTimestamp {
+                newIndex = -1
+            } else {
+                var lo = 0, hi = lineTimestamps.count - 1
+                while lo < hi {
+                    let mid = (lo + hi + 1) / 2
+                    if lineTimestamps[mid] <= currentTime { lo = mid } else { hi = mid - 1 }
+                }
+                newIndex = lo
             }
-            newIndex = lo
         } else {
             // Plain lyrics: estimate from playback progress
             let progress = playerService.track.progress
             newIndex = min(Int(progress * Double(lines.count)), lines.count - 1)
         }
 
-        if newIndex != currentLineIndex && newIndex >= 0 {
+        if newIndex != currentLineIndex {
             currentLineIndex = newIndex
         }
     }
@@ -155,7 +161,7 @@ struct LyricsOverlay: View {
         isLoading = true
         lines = []
         lineTimestamps = []
-        currentLineIndex = 0
+        currentLineIndex = -1
         isSynced = false
         error = nil
         source = ""
@@ -188,6 +194,7 @@ struct LyricsOverlay: View {
                 if timestamps.count == parsed.count && !timestamps.isEmpty {
                     lineTimestamps = timestamps
                     isSynced = true
+                    updateCurrentLine()
                 }
             } else {
                 error = "No lyrics available"

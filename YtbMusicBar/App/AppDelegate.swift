@@ -8,13 +8,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: FloatingPanel?
     private var hiddenWindow: NSWindow?
     private var wasPlayingBeforeSleep = false
+    private var statusLyricsTask: Task<Void, Never>?
 
     // Scrolling text in the single status item
     private var scrollTimer: Timer?
     private var scrollOffset: Int = 0
     private var scrollFullText: String = ""
     private let scrollMaxChars = 40
-    private var lastScrollTrackId: String = ""
+    private var lastScrollTextKey: String = ""
     private var isShowingText = false
 
     // Services (shared across the app)
@@ -52,6 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         playerService.onTrackChanged = { [weak self] track in
             self?.notificationService.notifyTrackChange(track: track)
+            self?.updateStatusBar()
+            self?.loadStatusLyrics(for: track)
+        }
+        playerService.onLyricLineChanged = { [weak self] _ in
             self?.updateStatusBar()
         }
 
@@ -108,7 +113,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         playerService.saveState()
         nowPlayingManager.teardown()
+        statusLyricsTask?.cancel()
         scrollTimer?.invalidate()
+    }
+
+    private func loadStatusLyrics(for track: Track) {
+        statusLyricsTask?.cancel()
+        guard !track.videoId.isEmpty else {
+            playerService.clearStatusLyrics()
+            return
+        }
+
+        let videoId = track.videoId
+        statusLyricsTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await self.apiClient.lyrics(videoId: videoId)
+                guard !Task.isCancelled else { return }
+                self.playerService.setStatusLyrics(result, for: videoId)
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.playerService.clearStatusLyrics()
+            }
+        }
     }
 
     // MARK: - Status Item (single item: icon + optional scrolling text)
@@ -144,17 +171,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if track.isEmpty || !isPlaying {
             // Not playing → icon only
             button.title = ""
+            button.attributedTitle = NSAttributedString(string: "")
             isShowingText = false
             scrollTimer?.invalidate()
             scrollTimer = nil
             scrollOffset = 0
+            lastScrollTextKey = ""
             return
         }
 
-        // Playing → show scrolling text next to icon
-        let newText = " \(track.title) — \(track.artist)"
-        if track.id != lastScrollTrackId {
-            lastScrollTrackId = track.id
+        // Playing → prefer synced lyric line when available, otherwise show track info.
+        let lyricLine = playerService.currentLyricLine
+        let newText = lyricLine.isEmpty ? " \(track.title) — \(track.artist)" : " \(lyricLine)"
+        let newTextKey = lyricLine.isEmpty ? "track:\(track.id)" : "lyric:\(track.id):\(lyricLine)"
+
+        if newTextKey != lastScrollTextKey {
+            lastScrollTextKey = newTextKey
             scrollFullText = newText
             scrollOffset = 0
         } else {

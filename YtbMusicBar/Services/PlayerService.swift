@@ -16,6 +16,7 @@ final class PlayerService {
     var albumArtImage: NSImage?
     /// High-resolution playback time in milliseconds, updated at ~10Hz while synced lyrics are visible.
     var currentTimeMs: Int = 0
+    var currentLyricLine: String = ""
 
     // MARK: - Queue
 
@@ -29,6 +30,8 @@ final class PlayerService {
     var onPlaybackStateChanged: ((Bool) -> Void)?
     /// Called when the track changes (for notifications)
     var onTrackChanged: ((Track) -> Void)?
+    /// Called when the synced lyric line changes (for status bar text updates).
+    var onLyricLineChanged: ((String) -> Void)?
 
     // MARK: - Dependencies
 
@@ -36,6 +39,10 @@ final class PlayerService {
     var apiClient: YTMusicClient?
     private var artworkLoadTask: Task<Void, Never>?
     private var lastArtURL: URL?
+    private var lyricsSyncReasons: Set<String> = []
+    private var statusLyricLines: [String] = []
+    private var statusLyricTimestampsMs: [Int] = []
+    private let lyricDisplayLeadMs = 350
 
     init(playerWebView: SingletonPlayerWebView) {
         self.playerWebView = playerWebView
@@ -101,12 +108,61 @@ final class PlayerService {
         playerWebView.evaluateJSFire("ytmCycleRepeat()")
     }
 
-    func startLyricsSync() {
-        playerWebView.startLyricsPoll()
+    func startLyricsSync(reason: String = "overlay") {
+        let shouldStart = lyricsSyncReasons.isEmpty
+        lyricsSyncReasons.insert(reason)
+        if shouldStart {
+            playerWebView.startLyricsPoll()
+        }
     }
 
-    func stopLyricsSync() {
-        playerWebView.stopLyricsPoll()
+    func stopLyricsSync(reason: String = "overlay") {
+        lyricsSyncReasons.remove(reason)
+        if lyricsSyncReasons.isEmpty {
+            playerWebView.stopLyricsPoll()
+        }
+    }
+
+    func updateCurrentLyricLine(_ line: String) {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard currentLyricLine != trimmed else { return }
+        currentLyricLine = trimmed
+        onLyricLineChanged?(trimmed)
+    }
+
+    func clearCurrentLyricLine() {
+        updateCurrentLyricLine("")
+    }
+
+    func setStatusLyrics(_ result: LyricsResult?, for videoId: String) {
+        guard videoId == track.videoId else { return }
+        guard let result, result.isSynced else {
+            clearStatusLyrics()
+            return
+        }
+
+        let timedLines = result.lines.compactMap { line -> (String, Int)? in
+            let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty, let startTimeMs = line.startTimeMs else { return nil }
+            return (text, startTimeMs)
+        }
+
+        guard !timedLines.isEmpty else {
+            clearStatusLyrics()
+            return
+        }
+
+        statusLyricLines = timedLines.map(\.0)
+        statusLyricTimestampsMs = timedLines.map(\.1)
+        startLyricsSync(reason: "status")
+        updateStatusLyricLine()
+    }
+
+    func clearStatusLyrics() {
+        statusLyricLines = []
+        statusLyricTimestampsMs = []
+        clearCurrentLyricLine()
+        stopLyricsSync(reason: "status")
     }
 
     func toggleLike() {
@@ -222,6 +278,7 @@ final class PlayerService {
 
         // Notify track change
         if trackChanged && !track.isEmpty {
+            clearStatusLyrics()
             onTrackChanged?(track)
         }
 
@@ -242,6 +299,32 @@ final class PlayerService {
     private func handleLyricsTimeUpdate(_ time: Double) {
         currentTimeMs = Int(time * 1000)
         track.currentTime = time
+        updateStatusLyricLine()
+    }
+
+    private func updateStatusLyricLine() {
+        guard !statusLyricLines.isEmpty, statusLyricLines.count == statusLyricTimestampsMs.count else {
+            clearCurrentLyricLine()
+            return
+        }
+
+        let displayTimeMs = currentTimeMs + lyricDisplayLeadMs
+        guard let firstTimestamp = statusLyricTimestampsMs.first, displayTimeMs >= firstTimestamp else {
+            clearCurrentLyricLine()
+            return
+        }
+
+        var lo = 0, hi = statusLyricTimestampsMs.count - 1
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if statusLyricTimestampsMs[mid] <= displayTimeMs {
+                lo = mid
+            } else {
+                hi = mid - 1
+            }
+        }
+
+        updateCurrentLyricLine(statusLyricLines[lo])
     }
 
     private func loadAlbumArt(from url: URL) {
