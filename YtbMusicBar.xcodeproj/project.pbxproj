@@ -23,6 +23,7 @@
 		6EFCF45878B6D71EE994616B /* SectionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE558A4D5E49401ADD6C99B1 /* SectionCardView.swift */; };
 		717FA6EA58A05257BD121BEB /* ProgressBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DF581CA23BF0347D4679E0 /* ProgressBarView.swift */; };
 		72E1CD1D0FAFF9DA1CB72ED3 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2877F0E1E2106B3D612F17D /* NotificationService.swift */; };
+		775709C83F3778EC9F480B23 /* StatusBarLyricView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A3F376F90BE4A8D8C47589D /* StatusBarLyricView.swift */; };
 		7CACF4146C28C3E03C111145 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2EC83797B39B5D2E89D3F7 /* Constants.swift */; };
 		7EFA4B90940BF2FE1763A322 /* Playlist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85267CEAE14FA9978CC0CC42 /* Playlist.swift */; };
 		8E1B4D1747741ACBC5EF8772 /* MainPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F30DF215FDEB512697FB8DD /* MainPanelView.swift */; };
@@ -65,6 +66,7 @@
 		0C0F146D2BD18B7D19E10288 /* PlayerBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerBarView.swift; sourceTree = "<group>"; };
 		1C2E2D8A55A40FF62EDA3B09 /* NowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingView.swift; sourceTree = "<group>"; };
 		1F4FC5E3A935C254EDD5C681 /* PlaybackStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStateTests.swift; sourceTree = "<group>"; };
+		2A3F376F90BE4A8D8C47589D /* StatusBarLyricView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarLyricView.swift; sourceTree = "<group>"; };
 		22FAADB86D26526C8E6BEC58 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2D7608745C68C4C28D503489 /* SearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResult.swift; sourceTree = "<group>"; };
 		48DF581CA23BF0347D4679E0 /* ProgressBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBarView.swift; sourceTree = "<group>"; };
@@ -150,6 +152,7 @@
 			children = (
 				FDE9EF5F7CDD4791DCFC2F14 /* AppDelegate.swift */,
 				AFFD9DFD1237B276B1E8776D /* FloatingPanel.swift */,
+				2A3F376F90BE4A8D8C47589D /* StatusBarLyricView.swift */,
 				A89401D785B295FF2D702BFF /* YtbMusicBarApp.swift */,
 			);
 			path = App;
@@ -356,6 +359,7 @@
 				3092D6A6224BA702D6ABD58A /* SettingsView.swift in Sources */,
 				574550338CA6034FB6F6BF7E /* ShareService.swift in Sources */,
 				E563C856906CDAAB7BE17D80 /* SingletonPlayerWebView.swift in Sources */,
+				775709C83F3778EC9F480B23 /* StatusBarLyricView.swift in Sources */,
 				FF3CCF64A0646E9723DA682F /* SongRowView.swift in Sources */,
 				4F8DE9873E6F52B3846DFEA8 /* Track.swift in Sources */,
 				DCD222A28D8B15671EC492AB /* WebKitManager.swift in Sources */,
