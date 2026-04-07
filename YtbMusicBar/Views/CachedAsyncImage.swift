@@ -8,10 +8,15 @@ struct CachedAsyncImage: View {
     @State private var image: NSImage?
     @State private var isLoading = false
 
-    private static var cache: [URL: NSImage] = [:]
+    private static let cache: NSCache<NSURL, NSImage> = {
+        let cache = NSCache<NSURL, NSImage>()
+        cache.countLimit = 150
+        cache.totalCostLimit = 60 * 1024 * 1024
+        return cache
+    }()
 
     static func clearCache() {
-        cache.removeAll()
+        cache.removeAllObjects()
     }
 
     var body: some View {
@@ -48,7 +53,7 @@ struct CachedAsyncImage: View {
         }
 
         // Check cache
-        if let cached = Self.cache[url] {
+        if let cached = Self.cache.object(forKey: url as NSURL) {
             image = cached
             return
         }
@@ -59,7 +64,7 @@ struct CachedAsyncImage: View {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             if let nsImage = NSImage(data: data) {
-                Self.cache[url] = nsImage
+                Self.cache.setObject(nsImage, forKey: url as NSURL, cost: imageCost(for: nsImage))
                 withAnimation(.easeIn(duration: 0.2)) {
                     image = nsImage
                 }
@@ -67,5 +72,12 @@ struct CachedAsyncImage: View {
         } catch {
             image = nil
         }
+    }
+
+    private func imageCost(for image: NSImage) -> Int {
+        let size = image.size
+        let width = max(Int(size.width), 1)
+        let height = max(Int(size.height), 1)
+        return width * height * 4
     }
 }

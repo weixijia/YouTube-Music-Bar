@@ -14,6 +14,8 @@ struct CollectionView: View {
     @State private var hasMoreLiked = false
     @State private var isLoading = false
     @State private var isLoadingMore = false
+    @State private var libraryErrorMessage: String?
+    @State private var likedErrorMessage: String?
 
     // Detail view state
     @State private var detailTracks: [Track] = []
@@ -119,15 +121,12 @@ struct CollectionView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if playlists.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "square.stack")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-                    Text("No playlists found")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                contentStateView(
+                    icon: libraryErrorMessage == nil ? "square.stack" : "exclamationmark.triangle",
+                    title: libraryErrorMessage ?? "No playlists found",
+                    buttonTitle: libraryErrorMessage == nil ? nil : "Try Again",
+                    action: libraryErrorMessage == nil ? nil : { Task { await loadLibrary(force: true) } }
+                )
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
@@ -181,15 +180,12 @@ struct CollectionView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if likedSongs.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "heart")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-                    Text("No liked songs")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                contentStateView(
+                    icon: likedErrorMessage == nil ? "heart" : "exclamationmark.triangle",
+                    title: likedErrorMessage ?? "No liked songs",
+                    buttonTitle: likedErrorMessage == nil ? nil : "Try Again",
+                    action: likedErrorMessage == nil ? nil : { Task { await loadLikedSongs() } }
+                )
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
@@ -288,20 +284,24 @@ struct CollectionView: View {
 
     // MARK: - Data Loading
 
-    private func loadLibrary() async {
-        guard playlists.isEmpty else { return }
+    private func loadLibrary(force: Bool = false) async {
+        guard force || playlists.isEmpty else { return }
         isLoading = true
+        libraryErrorMessage = nil
         defer { isLoading = false }
 
         do {
             playlists = try await apiClient.getLibraryPlaylists()
+            libraryErrorMessage = nil
         } catch {
             playlists = []
+            libraryErrorMessage = error.userFacingMessage
         }
     }
 
     private func loadLikedSongs() async {
         isLoading = true
+        likedErrorMessage = nil
         defer { isLoading = false }
 
         do {
@@ -309,9 +309,11 @@ struct CollectionView: View {
             var seen = Set<String>()
             likedSongs = songs.filter { seen.insert($0.videoId).inserted }
             hasMoreLiked = token != nil
+            likedErrorMessage = nil
         } catch {
             likedSongs = []
             hasMoreLiked = false
+            likedErrorMessage = error.userFacingMessage
         }
     }
 
@@ -347,5 +349,24 @@ struct CollectionView: View {
                 detailTracks = []
             }
         }
+    }
+
+    private func contentStateView(icon: String, title: String, buttonTitle: String? = nil, action: (() -> Void)? = nil) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 32))
+                .foregroundStyle(.tertiary)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            if let buttonTitle, let action {
+                Button(buttonTitle, action: action)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

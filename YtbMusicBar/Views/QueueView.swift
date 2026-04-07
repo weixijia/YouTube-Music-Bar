@@ -6,6 +6,7 @@ struct QueueView: View {
 
     @State private var upNextTracks: [Track] = []
     @State private var isLoading = false
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,26 +30,14 @@ struct QueueView: View {
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let errorMessage {
+                queueStateView(icon: "exclamationmark.triangle", title: errorMessage, buttonTitle: "Try Again") {
+                    Task { await loadQueue() }
+                }
             } else if upNextTracks.isEmpty && playerService.track.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "list.bullet")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-                    Text("Play something to see the queue")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                queueStateView(icon: "list.bullet", title: "Play something to see the queue")
             } else if upNextTracks.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "list.bullet")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.tertiary)
-                    Text("Queue is empty")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                queueStateView(icon: "list.bullet", title: "Queue is empty")
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
@@ -92,7 +81,13 @@ struct QueueView: View {
                         // Up next tracks
                         ForEach(Array(upNextTracks.enumerated()), id: \.element.id) { index, track in
                             QueueTrackRow(track: track, index: index + 1) {
-                                playerService.play(videoId: track.videoId)
+                                playerService.play(
+                                    videoId: track.videoId,
+                                    playlistId: playerService.playbackContext?.playlistId,
+                                    browseId: playerService.playbackContext?.browseId,
+                                    source: .queue,
+                                    resultType: playerService.playbackContext?.resultType
+                                )
                             }
                         }
                     }
@@ -100,30 +95,57 @@ struct QueueView: View {
                 }
             }
         }
-        .task(id: playerService.track.videoId) {
+        .task(id: queueTaskID) {
             await loadQueue()
         }
     }
 
+    private var queueTaskID: String {
+        [playerService.queueRequestVideoId, playerService.playbackContext?.taskID ?? ""].joined(separator: "|")
+    }
+
     private func loadQueue() async {
-        let videoId = playerService.track.videoId
+        let videoId = playerService.queueRequestVideoId
         guard !videoId.isEmpty else {
             upNextTracks = []
             return
         }
 
         isLoading = upNextTracks.isEmpty
+        errorMessage = nil
         defer { isLoading = false }
 
         do {
-            let tracks = try await apiClient.upNext(videoId: videoId)
+            let tracks = try await apiClient.upNext(videoId: videoId, playlistId: playerService.playbackContext?.playlistId)
             // Filter out current track
             upNextTracks = tracks.filter { $0.videoId != videoId }
             // Sync to PlayerService queue
             playerService.setQueue(tracks)
+            errorMessage = nil
         } catch {
+            upNextTracks = []
+            errorMessage = error.userFacingMessage
             print("[Queue] Error: \(error)")
         }
+    }
+
+    private func queueStateView(icon: String, title: String, buttonTitle: String? = nil, action: (() -> Void)? = nil) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 32))
+                .foregroundStyle(.tertiary)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            if let buttonTitle, let action {
+                Button(buttonTitle, action: action)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
