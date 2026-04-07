@@ -1,10 +1,11 @@
 # Release Guide
 
-This guide documents a practical release workflow for Ytb Music Bar using the current Xcode project. It focuses on producing a universal macOS `.app`, packaging it into a `.dmg`, and preparing it for a GitHub release upload.
+This is the practical release workflow for **YouTube Music Bar**. It covers the current universal macOS build, DMG packaging, and GitHub release upload flow.
 
 ## Current project facts
 
-- Product name: `Ytb Music Bar`
+- Public name: `YouTube Music Bar`
+- Product name in the current Xcode project: `Ytb Music Bar`
 - Scheme: `YtbMusicBar`
 - Project: `YtbMusicBar.xcodeproj`
 - Deployment target: macOS 14.0+
@@ -12,7 +13,7 @@ This guide documents a practical release workflow for Ytb Music Bar using the cu
 - Current build number: `2`
 - App bundle identifier: `com.ytbmusicbar.app`
 
-Those values come from `project.yml`, `Info.plist`, and the shared Xcode scheme currently in the repo.
+The public name is **YouTube Music Bar**. Some internal project files still use the shorter `YtbMusicBar` naming.
 
 ## Prerequisites
 
@@ -31,7 +32,7 @@ If you archive instead of plain building, the archive appears at:
 
 - `build/YtbMusicBar.xcarchive`
 
-## 1. Build a universal Release app
+## 1. Build a universal release app
 
 The simplest release path is a Release build for macOS with both architectures requested explicitly.
 
@@ -147,7 +148,7 @@ Document this in the release notes or README:
 xattr -cr "/Applications/Ytb Music Bar.app"
 ```
 
-## 8. Suggested release upload checklist
+## 8. Suggested release checklist
 
 1. Update `CFBundleShortVersionString` and `CFBundleVersion` in project metadata before building.
 2. Run the universal Release build.
