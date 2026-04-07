@@ -62,7 +62,7 @@ final class WebKitManager {
     }
 
     /// Returns the latest auth material for YouTube Music API requests.
-    func currentAuthHeaders(for domain: String = "music.youtube.com") async -> (sapisid: String, cookieHeader: String?)? {
+    func currentAuthHeaders(for domain: String = "youtube.com") async -> (sapisid: String, cookieHeader: String?)? {
         let cookies = await WKWebsiteDataStore.default().httpCookieStore.allCookies()
         updateCachedAuth(from: cookies)
 

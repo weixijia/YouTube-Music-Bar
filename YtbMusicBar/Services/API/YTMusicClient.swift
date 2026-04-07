@@ -15,13 +15,14 @@ final class YTMusicClient {
 
     private let baseURL = URL(string: "https://music.youtube.com/youtubei/v1")!
     private let apiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
+    private static let clientVersion = "1.20231204.01.00"
 
     // Client context matching kaset's exact format
     private var clientContext: [String: Any] {
         [
             "client": [
                 "clientName": "WEB_REMIX",
-                "clientVersion": "1.20250401.01.00",
+                "clientVersion": Self.clientVersion,
                 "hl": "en",
                 "gl": "US",
                 "experimentIds": [] as [String],
@@ -225,8 +226,15 @@ final class YTMusicClient {
 
         let (data, response) = try await session.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw YTMusicError.requestFailed
+        }
+
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw YTMusicError.authExpired
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw YTMusicError.requestFailed
         }
 
