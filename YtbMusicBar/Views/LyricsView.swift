@@ -13,7 +13,6 @@ struct LyricsOverlay: View {
     @State private var source: String = ""
     @State private var lineTimestamps: [TimeInterval] = []
     @State private var isSynced = false
-    private let syncedLyricsDisplayLead: TimeInterval = 0.35
 
     var body: some View {
         ZStack {
@@ -126,7 +125,7 @@ struct LyricsOverlay: View {
         let newIndex: Int
         if isSynced && !lineTimestamps.isEmpty {
             // Synced: binary search on timestamps
-            let currentTime = (Double(playerService.currentTimeMs) / 1000.0) + syncedLyricsDisplayLead
+            let currentTime = Double(playerService.currentTimeMs) / 1000.0
             if let firstTimestamp = lineTimestamps.first, currentTime < firstTimestamp {
                 newIndex = -1
             } else {
@@ -175,7 +174,7 @@ struct LyricsOverlay: View {
         defer { isLoading = false }
 
         do {
-            if let result = try await apiClient.lyrics(videoId: videoId) {
+            if let result = try await apiClient.lyricsWithFallback(for: playerService.track) {
                 let parsed = result.lines.map(\.text).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
                 source = result.source
 

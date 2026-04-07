@@ -54,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         playerService.onTrackChanged = { [weak self] track in
             self?.notificationService.notifyTrackChange(track: track)
+            self?.statusLyricsRequestedVideoId = nil
             self?.updateStatusBar()
         }
         playerService.onLyricLineChanged = { [weak self] _ in
@@ -130,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusLyricsTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let result = try await self.apiClient.lyrics(videoId: videoId)
+                let result = try await self.apiClient.lyricsWithFallback(for: track)
                 guard !Task.isCancelled else { return }
                 self.playerService.setStatusLyrics(result, for: videoId)
             } catch {

@@ -152,6 +152,75 @@ final class YTMusicClient {
         return LyricsParser.parse(lyricsData)
     }
 
+    /// Fetch synced lyrics using kaset's order: YouTube Music first, LRCLib as fallback.
+    func lyricsWithFallback(for track: Track) async throws -> LyricsResult? {
+        guard !track.videoId.isEmpty else { return nil }
+
+        let ytMusicResult = try await lyrics(videoId: track.videoId)
+        if ytMusicResult?.isSynced == true {
+            return ytMusicResult
+        }
+
+        if let lrcResult = await searchLRCLib(for: track),
+           lrcResult.isSynced || ytMusicResult == nil {
+            return lrcResult
+        }
+
+        return ytMusicResult
+    }
+
+    private func searchLRCLib(for track: Track) async -> LyricsResult? {
+        guard !track.title.isEmpty, !track.artist.isEmpty else { return nil }
+
+        var components = URLComponents(string: "https://lrclib.net/api/search")
+        components?.queryItems = [
+            URLQueryItem(name: "track_name", value: track.title),
+            URLQueryItem(name: "artist_name", value: track.artist),
+        ]
+
+        guard let url = components?.url else { return nil }
+
+        var request = URLRequest(url: url)
+        request.setValue("Kaset/1.0", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                return nil
+            }
+
+            let results = try JSONDecoder().decode([LRCLibModel].self, from: data)
+            let validResults = results.filter {
+                (($0.syncedLyrics?.isEmpty == false) || ($0.plainLyrics?.isEmpty == false)) &&
+                    ($0.instrumental == false || $0.instrumental == nil)
+            }
+            guard !validResults.isEmpty else { return nil }
+
+            let bestMatch: LRCLibModel
+            if track.duration > 0 {
+                bestMatch = validResults.min { a, b in
+                    abs((a.duration ?? 0) - track.duration) < abs((b.duration ?? 0) - track.duration)
+                } ?? validResults[0]
+            } else {
+                bestMatch = validResults[0]
+            }
+
+            if let synced = bestMatch.syncedLyrics,
+               let parsed = LRCParser.parse(synced, source: "LRCLib") {
+                return parsed
+            }
+
+            if let plain = bestMatch.plainLyrics, !plain.isEmpty {
+                let lines = plain.components(separatedBy: "\n").map { LyricsLine(text: $0) }
+                return LyricsResult(lines: lines, isSynced: false, source: "Source: LRCLib")
+            }
+
+            return nil
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Liked Songs (kaset exact pattern: VLLM + continuation)
 
     func getLikedSongs() async throws -> ([Track], String?) {
@@ -255,6 +324,17 @@ final class YTMusicClient {
         let hashString = hash.map { String(format: "%02x", $0) }.joined()
         return "\(timestamp)_\(hashString)"
     }
+}
+
+private struct LRCLibModel: Decodable {
+    let id: Int
+    let trackName: String?
+    let artistName: String?
+    let albumName: String?
+    let duration: TimeInterval?
+    let instrumental: Bool?
+    let plainLyrics: String?
+    let syncedLyrics: String?
 }
 
 // MARK: - Error Types

@@ -757,6 +757,76 @@ enum LyricsParser {
     }
 }
 
+// MARK: - LRC Parser
+
+enum LRCParser {
+    static func parse(_ raw: String, source: String = "Parsed") -> LyricsResult? {
+        var unmergedLines: [LyricsLine] = []
+        var offsetMs = 0
+
+        let lines = raw.components(separatedBy: .newlines)
+        let timeRegex = try? NSRegularExpression(pattern: "\\[(\\d{2,}):(\\d{2})\\.(\\d{2,3})\\]")
+        let metadataRegex = try? NSRegularExpression(pattern: "\\[([a-z]+):([^\\]]+)\\]")
+        let wordRegex = try? NSRegularExpression(pattern: "<(\\d{2,}):(\\d{2})\\.(\\d{2,3})>([^<]+)")
+        let pureMetadataRegex = try? NSRegularExpression(pattern: "^\\[([a-z]+):([^\\]]+)\\]\\s*$")
+
+        for line in lines {
+            let nsLine = line as NSString
+            let fullRange = NSRange(location: 0, length: nsLine.length)
+
+            if let metaMatch = metadataRegex?.firstMatch(in: line, options: [], range: fullRange) {
+                let key = nsLine.substring(with: metaMatch.range(at: 1)).lowercased()
+                let value = nsLine.substring(with: metaMatch.range(at: 2)).trimmingCharacters(in: .whitespaces)
+                if key == "offset", let offset = Int(value) {
+                    offsetMs = offset
+                }
+                if pureMetadataRegex?.firstMatch(in: line, options: [], range: fullRange) != nil {
+                    continue
+                }
+            }
+
+            guard let timeRegex else { continue }
+            let matches = timeRegex.matches(in: line, options: [], range: fullRange)
+            guard !matches.isEmpty else { continue }
+
+            var textOnly = timeRegex.stringByReplacingMatches(in: line, options: [], range: fullRange, withTemplate: "")
+            if let wordRegex {
+                let nsText = textOnly as NSString
+                textOnly = wordRegex.stringByReplacingMatches(
+                    in: textOnly,
+                    options: [],
+                    range: NSRange(location: 0, length: nsText.length),
+                    withTemplate: "$4"
+                )
+            }
+            textOnly = textOnly.trimmingCharacters(in: .whitespaces)
+
+            for match in matches {
+                let minutes = Int(nsLine.substring(with: match.range(at: 1))) ?? 0
+                let seconds = Int(nsLine.substring(with: match.range(at: 2))) ?? 0
+                let ms = parseCentsToMs(nsLine.substring(with: match.range(at: 3)))
+                let timeMs = max(0, (minutes * 60 * 1000) + (seconds * 1000) + ms - offsetMs)
+                unmergedLines.append(LyricsLine(text: textOnly, startTimeMs: timeMs))
+            }
+        }
+
+        guard !unmergedLines.isEmpty else { return nil }
+        unmergedLines.sort { ($0.startTimeMs ?? 0) < ($1.startTimeMs ?? 0) }
+        return LyricsResult(lines: unmergedLines, isSynced: true, source: source)
+    }
+
+    private static func parseCentsToMs(_ value: String) -> Int {
+        var string = value
+        while string.count < 3 {
+            string += "0"
+        }
+        if string.count > 3 {
+            string = String(string.prefix(3))
+        }
+        return Int(string) ?? 0
+    }
+}
+
 // MARK: - Up Next Parser
 
 enum UpNextParser {

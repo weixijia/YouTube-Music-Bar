@@ -87,4 +87,22 @@ final class ParsersTests: XCTestCase {
         XCTAssertEqual(result?.lines.first?.startTimeMs, 1200)
         XCTAssertTrue(result?.isSynced == true)
     }
+
+    func testLRCParserSupportsLRCLibSyncedLyrics() {
+        let raw = """
+        [ar:Artist]
+        [offset:100]
+        [00:01.20]First line
+        [00:03.45]<00:03.45>Second <00:04.00>line
+        """
+
+        let result = LRCParser.parse(raw, source: "LRCLib")
+        XCTAssertEqual(result?.lines.count, 2)
+        XCTAssertEqual(result?.lines[0].text, "First line")
+        XCTAssertEqual(result?.lines[0].startTimeMs, 1100)
+        XCTAssertEqual(result?.lines[1].text, "Second line")
+        XCTAssertEqual(result?.lines[1].startTimeMs, 3350)
+        XCTAssertEqual(result?.source, "LRCLib")
+        XCTAssertTrue(result?.isSynced == true)
+    }
 }
