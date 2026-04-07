@@ -1,0 +1,242 @@
+import Foundation
+import AppKit
+import Observation
+
+/// Central player service coordinating WebView playback, queue, and state.
+@MainActor @Observable
+final class PlayerService {
+
+    // MARK: - Playback State
+
+    var track: Track = .empty
+    var playbackState: PlaybackState = .idle
+    var volume: Double = 100
+    var isShuffle: Bool = false
+    var repeatMode: RepeatMode = .off
+    var albumArtImage: NSImage?
+
+    // MARK: - Queue
+
+    var queue: [Track] = []
+    var queueIndex: Int = -1
+    private var forwardSkipStack: [Int] = []
+
+    // MARK: - Callbacks
+
+    /// Called when playback state changes (for status bar icon updates etc.)
+    var onPlaybackStateChanged: ((Bool) -> Void)?
+    /// Called when the track changes (for notifications)
+    var onTrackChanged: ((Track) -> Void)?
+
+    // MARK: - Dependencies
+
+    private let playerWebView: SingletonPlayerWebView
+    var apiClient: YTMusicClient?
+    private var artworkLoadTask: Task<Void, Never>?
+    private var lastArtURL: URL?
+
+    init(playerWebView: SingletonPlayerWebView) {
+        self.playerWebView = playerWebView
+
+        playerWebView.onStateUpdate = { [weak self] state in
+            self?.handleStateUpdate(state)
+        }
+        playerWebView.onTrackEnded = { [weak self] in
+            self?.handleTrackEnded()
+        }
+
+        restoreState()
+    }
+
+    // MARK: - Playback Controls
+
+    func togglePlayPause() {
+        playerWebView.evaluateJSFire("ytmTogglePlayPause()")
+    }
+
+    func play() {
+        playerWebView.evaluateJSFire("ytmPlay()")
+    }
+
+    func pause() {
+        playerWebView.evaluateJSFire("ytmPause()")
+    }
+
+    func nextTrack() {
+        if queueIndex >= 0 {
+            forwardSkipStack.append(queueIndex)
+        }
+        playerWebView.evaluateJSFire("ytmNext()")
+    }
+
+    func previousTrack() {
+        if let prevIndex = forwardSkipStack.popLast() {
+            queueIndex = prevIndex
+        }
+        playerWebView.evaluateJSFire("ytmPrevious()")
+    }
+
+    func seek(to fraction: Double) {
+        let seconds = fraction * track.duration
+        playerWebView.evaluateJSFire("ytmSeekTo(\(seconds))")
+    }
+
+    func setVolume(_ value: Double) {
+        volume = value
+        playerWebView.evaluateJSFire("ytmSetVolume(\(Int(value)))")
+    }
+
+    func toggleShuffle() {
+        isShuffle.toggle()
+        playerWebView.evaluateJSFire("ytmToggleShuffle()")
+    }
+
+    func cycleRepeat() {
+        repeatMode = repeatMode.next
+        playerWebView.evaluateJSFire("ytmCycleRepeat()")
+    }
+
+    func toggleLike() {
+        // Click WebView button for immediate visual feedback
+        playerWebView.evaluateJSFire("ytmToggleLike()")
+        track.isLiked.toggle()
+
+        // Also call API for cloud sync (ensures it persists server-side)
+        let videoId = track.videoId
+        let shouldLike = track.isLiked
+        if !videoId.isEmpty, let apiClient = apiClient {
+            Task {
+                do {
+                    if shouldLike {
+                        try await apiClient.like(videoId: videoId)
+                    } else {
+                        try await apiClient.removeLike(videoId: videoId)
+                    }
+                } catch {
+                    print("[Player] Like API error: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Play Specific Content
+
+    func play(videoId: String) {
+        playerWebView.play(videoId: videoId)
+    }
+
+    func play(searchResult: SearchResult) {
+        guard let videoId = searchResult.videoId else { return }
+        play(videoId: videoId)
+    }
+
+    /// Play a playlist/mix by navigating WebView to the playlist watch URL.
+    func playPlaylist(id: String) {
+        playerWebView.playPlaylist(id: id)
+    }
+
+    // MARK: - Queue Management
+
+    /// Replace queue with fetched upNext tracks from YouTube Music API.
+    func setQueue(_ tracks: [Track], currentIndex: Int = 0) {
+        queue = tracks
+        queueIndex = tracks.isEmpty ? -1 : currentIndex
+        forwardSkipStack.removeAll()
+    }
+
+    func addToQueue(_ track: Track) {
+        queue.append(track)
+    }
+
+    func removeFromQueue(at index: Int) {
+        guard queue.indices.contains(index) else { return }
+        queue.remove(at: index)
+        if index < queueIndex { queueIndex -= 1 }
+    }
+
+    func moveInQueue(from: IndexSet, to: Int) {
+        queue.move(fromOffsets: from, toOffset: to)
+    }
+
+    func clearQueue() {
+        queue.removeAll()
+        queueIndex = -1
+        forwardSkipStack.removeAll()
+    }
+
+    // MARK: - State Persistence
+
+    func saveState() {
+        UserDefaults.standard.set(volume, forKey: "playerVolume")
+        UserDefaults.standard.set(isShuffle, forKey: "playerShuffle")
+        UserDefaults.standard.set(repeatMode.rawValue, forKey: "playerRepeat")
+    }
+
+    private func restoreState() {
+        volume = UserDefaults.standard.double(forKey: "playerVolume")
+        if volume == 0 { volume = 100 }
+        isShuffle = UserDefaults.standard.bool(forKey: "playerShuffle")
+        repeatMode = RepeatMode(rawValue: UserDefaults.standard.integer(forKey: "playerRepeat")) ?? .off
+    }
+
+    // MARK: - Private
+
+    private func handleStateUpdate(_ state: SingletonPlayerWebView.TrackState) {
+        let trackChanged = track.videoId != state.videoId
+            || (track.title != state.title && !state.title.isEmpty)
+
+        track.title = state.title
+        track.artist = state.artist
+        track.videoId = state.videoId
+        track.albumTitle = state.albumTitle
+        track.duration = state.duration
+        track.currentTime = state.currentTime
+        track.isLiked = state.isLiked
+
+        if let url = URL(string: state.albumArt), !state.albumArt.isEmpty {
+            track.albumArtURL = url
+        }
+
+        let newPlaybackState: PlaybackState = state.title.isEmpty ? .idle : (state.isPlaying ? .playing : .paused)
+        let playbackChanged = playbackState != newPlaybackState
+        playbackState = newPlaybackState
+
+        // Notify status icon update
+        if playbackChanged {
+            onPlaybackStateChanged?(playbackState.isPlaying)
+        }
+
+        // Notify track change
+        if trackChanged && !track.isEmpty {
+            onTrackChanged?(track)
+        }
+
+        // Load album art on track change
+        if trackChanged, let artURL = track.albumArtURL, artURL != lastArtURL {
+            loadAlbumArt(from: artURL)
+        }
+    }
+
+    private func handleTrackEnded() {
+        // Auto-advance handled by YouTube Music's queue
+        // We just need to track our queue index
+        if queueIndex < queue.count - 1 {
+            queueIndex += 1
+        }
+    }
+
+    private func loadAlbumArt(from url: URL) {
+        lastArtURL = url
+        artworkLoadTask?.cancel()
+        artworkLoadTask = Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if !Task.isCancelled, let image = NSImage(data: data) {
+                    self.albumArtImage = image
+                }
+            } catch {
+                if !Task.isCancelled { self.albumArtImage = nil }
+            }
+        }
+    }
+}
