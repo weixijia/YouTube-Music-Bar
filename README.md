@@ -32,17 +32,17 @@ YouTube Music Bar is a lightweight Mac app that keeps YouTube Music one click aw
 
 ## Download
 
-Grab the latest `.dmg` from the [Releases](https://github.com/weixijia/Ytb_Music_Bar/releases) page.
+Grab the latest `.dmg` from the [Releases](https://github.com/weixijia/YouTube-Music-Bar/releases) page.
 
 If macOS quarantines the app after download, run:
 
 ```bash
-xattr -cr "/Applications/Ytb Music Bar.app"
+xattr -cr "/Applications/YouTube Music Bar.app"
 ```
 
 ## Build from source
 
-Open `YtbMusicBar.xcodeproj` in Xcode and run the `YtbMusicBar` scheme.
+Open `YouTubeMusicBar.xcodeproj` in Xcode and run the `YouTubeMusicBar` scheme.
 
 If you want a universal build or a DMG, use the steps in [RELEASE.md](RELEASE.md).
 
