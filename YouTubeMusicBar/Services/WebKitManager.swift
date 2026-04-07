@@ -7,7 +7,7 @@ import Security
 @MainActor @Observable
 final class WebKitManager {
 
-    private static let keychainService = "com.ytbmusicbar.cookies"
+    private static let keychainService = "com.youtubemusicbar.cookies"
     private static let keychainAccount = "ytmusic-auth"
 
     /// Cookie names that can authenticate YouTube Music requests.

@@ -296,9 +296,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         else {
             menu.addItem(makeMenuItem(title: "Settings…", action: #selector(menuOpenSettings), keyEquivalent: ","))
         }
-        menu.addItem(makeMenuItem(title: "About Ytb Music Bar", action: #selector(menuShowAbout)))
+        menu.addItem(makeMenuItem(title: "About YouTube Music Bar", action: #selector(menuShowAbout)))
         menu.addItem(.separator())
-        menu.addItem(makeMenuItem(title: "Quit Ytb Music Bar", action: #selector(quitApp), keyEquivalent: "q"))
+        menu.addItem(makeMenuItem(title: "Quit YouTube Music Bar", action: #selector(quitApp), keyEquivalent: "q"))
 
         statusItem?.menu = menu
         statusItem?.button?.performClick(nil)
@@ -325,7 +325,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func menuShowAbout() {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
         let alert = NSAlert()
-        alert.messageText = "Ytb Music Bar"
+        alert.messageText = "YouTube Music Bar"
         alert.informativeText = "Version \(version)\n\nA native macOS menu bar app for YouTube Music."
         alert.alertStyle = .informational
         alert.icon = NSApp.applicationIconImage
@@ -356,7 +356,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let hostingController = NSHostingController(rootView: contentView)
             let window = NSWindow(contentViewController: hostingController)
             window.title = "Settings"
-            window.identifier = NSUserInterfaceItemIdentifier("com.ytbmusicbar.settings")
+            window.identifier = NSUserInterfaceItemIdentifier("com.youtubemusicbar.settings")
             window.setContentSize(NSSize(width: 520, height: 420))
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.isReleasedWhenClosed = false

@@ -104,7 +104,7 @@ struct SettingsView: View {
                         .font(.system(size: 40))
                         .foregroundStyle(Color.accentColor)
 
-                    Text("Ytb Music Bar")
+                    Text("YouTube Music Bar")
                         .font(.title3.bold())
 
                     Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0")")
