@@ -19,7 +19,7 @@ A native macOS menu bar app for YouTube Music with Liquid Glass design.
 | Web Engine | WKWebView (hidden, audio only) |
 | Media Controls | MPRemoteCommandCenter + MPNowPlayingInfoCenter |
 | Design | Liquid Glass (macOS 26+) with .ultraThinMaterial fallback |
-| Min Deployment | macOS 13 (Ventura) |
+| Min Deployment | macOS 14 (Sonoma) |
 | Dependencies | Zero external packages — Apple frameworks only |
 
 ## Architecture

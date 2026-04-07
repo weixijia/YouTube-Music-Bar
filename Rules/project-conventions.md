@@ -5,7 +5,7 @@
 - **Swift 6.2+** with strict concurrency enabled
 - **SwiftUI** for all UI (views, state, animations)
 - **AppKit** only for system integration (NSStatusItem, NSPopover, WKWebView wrapping)
-- **Minimum deployment**: macOS 13 (Ventura)
+- **Minimum deployment**: macOS 14 (Sonoma)
 - **Liquid Glass target**: macOS 26 (Tahoe) with fallback
 
 ## Naming Conventions
