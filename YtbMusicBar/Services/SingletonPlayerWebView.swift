@@ -23,12 +23,15 @@ final class SingletonPlayerWebView: NSObject {
         var artist: String = ""
         var albumArt: String = ""
         var videoId: String = ""
+        var playlistId: String = ""
         var albumTitle: String = ""
         var isPlaying: Bool = false
         var currentTime: Double = 0
         var duration: Double = 0
         var volume: Int = 100
         var isLiked: Bool = false
+        var isShuffle: Bool = false
+        var repeatMode: RepeatMode = .off
     }
 
     init(webKitManager: WebKitManager) {
@@ -75,10 +78,14 @@ final class SingletonPlayerWebView: NSObject {
         webView.load(request)
     }
 
-    func play(videoId: String) {
+    func play(videoId: String, playlistId: String? = nil) {
         let url = Constants.ytMusicURL.appendingPathComponent("watch")
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
-        components.queryItems = [URLQueryItem(name: "v", value: videoId)]
+        var queryItems = [URLQueryItem(name: "v", value: videoId)]
+        if let playlistId, !playlistId.isEmpty {
+            queryItems.append(URLQueryItem(name: "list", value: playlistId))
+        }
+        components.queryItems = queryItems
         if let finalURL = components.url {
             webView.load(URLRequest(url: finalURL))
         }
@@ -175,12 +182,15 @@ extension SingletonPlayerWebView: WKScriptMessageHandler {
                 artist: dict["artist"] as? String ?? "",
                 albumArt: dict["albumArt"] as? String ?? "",
                 videoId: dict["videoId"] as? String ?? "",
+                playlistId: dict["playlistId"] as? String ?? "",
                 albumTitle: dict["albumTitle"] as? String ?? "",
                 isPlaying: dict["isPlaying"] as? Bool ?? false,
                 currentTime: dict["currentTime"] as? Double ?? 0,
                 duration: dict["duration"] as? Double ?? 0,
                 volume: dict["volume"] as? Int ?? 100,
-                isLiked: dict["isLiked"] as? Bool ?? false
+                isLiked: dict["isLiked"] as? Bool ?? false,
+                isShuffle: dict["isShuffle"] as? Bool ?? false,
+                repeatMode: RepeatMode(rawValue: dict["repeatMode"] as? Int ?? 0) ?? .off
             )
             onStateUpdate?(state)
 

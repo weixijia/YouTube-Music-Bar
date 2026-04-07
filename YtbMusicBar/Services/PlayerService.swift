@@ -17,6 +17,8 @@ final class PlayerService {
     /// High-resolution playback time in milliseconds, updated at ~10Hz while synced lyrics are visible.
     var currentTimeMs: Int = 0
     var currentLyricLine: String = ""
+    var playbackContext: PlaybackContext?
+    var hasStatusLyrics: Bool { !statusLyricLines.isEmpty }
 
     // MARK: - Queue
 
@@ -36,12 +38,12 @@ final class PlayerService {
     // MARK: - Dependencies
 
     private let playerWebView: SingletonPlayerWebView
-    var apiClient: YTMusicClient?
     private var artworkLoadTask: Task<Void, Never>?
     private var lastArtURL: URL?
     private var lyricsSyncReasons: Set<String> = []
     private var statusLyricLines: [String] = []
     private var statusLyricTimestampsMs: [Int] = []
+    private var statusLyricsAreSynced = false
 
     init(playerWebView: SingletonPlayerWebView) {
         self.playerWebView = playerWebView
@@ -98,12 +100,10 @@ final class PlayerService {
     }
 
     func toggleShuffle() {
-        isShuffle.toggle()
         playerWebView.evaluateJSFire("ytmToggleShuffle()")
     }
 
     func cycleRepeat() {
-        repeatMode = repeatMode.next
         playerWebView.evaluateJSFire("ytmCycleRepeat()")
     }
 
@@ -135,7 +135,16 @@ final class PlayerService {
 
     func setStatusLyrics(_ result: LyricsResult?, for videoId: String) {
         guard videoId == track.videoId else { return }
-        guard let result, result.isSynced else {
+        guard let result else {
+            clearStatusLyrics()
+            return
+        }
+
+        let allLines = result.lines
+            .map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !allLines.isEmpty else {
             clearStatusLyrics()
             return
         }
@@ -146,13 +155,16 @@ final class PlayerService {
             return (text, startTimeMs)
         }
 
-        guard !timedLines.isEmpty else {
-            clearStatusLyrics()
-            return
+        statusLyricsAreSynced = result.isSynced && !timedLines.isEmpty
+
+        if statusLyricsAreSynced {
+            statusLyricLines = timedLines.map(\.0)
+            statusLyricTimestampsMs = timedLines.map(\.1)
+        } else {
+            statusLyricLines = allLines
+            statusLyricTimestampsMs = []
         }
 
-        statusLyricLines = timedLines.map(\.0)
-        statusLyricTimestampsMs = timedLines.map(\.1)
         startLyricsSync(reason: "status")
         updateStatusLyricLine()
     }
@@ -160,47 +172,108 @@ final class PlayerService {
     func clearStatusLyrics() {
         statusLyricLines = []
         statusLyricTimestampsMs = []
+        statusLyricsAreSynced = false
         clearCurrentLyricLine()
         stopLyricsSync(reason: "status")
     }
 
     func toggleLike() {
-        // Click WebView button for immediate visual feedback
         playerWebView.evaluateJSFire("ytmToggleLike()")
-        track.isLiked.toggle()
-
-        // Also call API for cloud sync (ensures it persists server-side)
-        let videoId = track.videoId
-        let shouldLike = track.isLiked
-        if !videoId.isEmpty, let apiClient = apiClient {
-            Task {
-                do {
-                    if shouldLike {
-                        try await apiClient.like(videoId: videoId)
-                    } else {
-                        try await apiClient.removeLike(videoId: videoId)
-                    }
-                } catch {
-                    print("[Player] Like API error: \(error)")
-                }
-            }
-        }
     }
 
     // MARK: - Play Specific Content
 
-    func play(videoId: String) {
-        playerWebView.play(videoId: videoId)
+    func play(
+        videoId: String,
+        playlistId: String? = nil,
+        browseId: String? = nil,
+        source: PlaybackContext.Source = .web,
+        resultType: SearchResult.ResultType? = nil
+    ) {
+        let normalizedPlaylistId = normalizedIdentifier(playlistId)
+        let normalizedBrowseId = normalizedIdentifier(browseId)
+        playbackContext = PlaybackContext(
+            source: source,
+            videoId: videoId,
+            playlistId: normalizedPlaylistId,
+            browseId: normalizedBrowseId,
+            resultType: resultType
+        )
+        playerWebView.play(videoId: videoId, playlistId: normalizedPlaylistId)
     }
 
-    func play(searchResult: SearchResult) {
-        guard let videoId = searchResult.videoId else { return }
-        play(videoId: videoId)
+    func play(searchResult: SearchResult, apiClient: YTMusicClient, source: PlaybackContext.Source) async {
+        switch searchResult.resultType {
+        case .song:
+            guard let videoId = searchResult.videoId else { return }
+            play(
+                videoId: videoId,
+                playlistId: searchResult.playlistId,
+                browseId: searchResult.browseId,
+                source: source,
+                resultType: searchResult.resultType
+            )
+
+        case .playlist:
+            if let playlistId = normalizedIdentifier(searchResult.playlistId) {
+                playPlaylist(id: playlistId, source: source, browseId: searchResult.browseId, resultType: searchResult.resultType)
+            } else if let browseId = normalizedIdentifier(searchResult.browseId) {
+                playPlaylist(id: browseId, source: source, browseId: browseId, resultType: searchResult.resultType)
+            }
+
+        case .album:
+            if let playlistId = normalizedIdentifier(searchResult.playlistId) {
+                playPlaylist(id: playlistId, source: source, browseId: searchResult.browseId, resultType: searchResult.resultType)
+                return
+            }
+
+            guard let browseId = normalizedIdentifier(searchResult.browseId) else { return }
+            do {
+                let detail = try await apiClient.playlistDetails(id: browseId)
+                if let firstTrack = detail.tracks.first, let resolvedPlaylistId = normalizedIdentifier(detail.playlistId) {
+                    play(
+                        videoId: firstTrack.videoId,
+                        playlistId: resolvedPlaylistId,
+                        browseId: browseId,
+                        source: source,
+                        resultType: searchResult.resultType
+                    )
+                } else {
+                    playPlaylist(id: browseId, source: source, browseId: browseId, resultType: searchResult.resultType)
+                }
+            } catch {
+                playPlaylist(id: browseId, source: source, browseId: browseId, resultType: searchResult.resultType)
+            }
+
+        case .artist, .other:
+            break
+        }
     }
 
-    /// Play a playlist/mix by navigating WebView to the playlist watch URL.
-    func playPlaylist(id: String) {
+    func playPlaylist(
+        id: String,
+        source: PlaybackContext.Source = .web,
+        browseId: String? = nil,
+        resultType: SearchResult.ResultType? = nil
+    ) {
+        let normalizedID = normalizedIdentifier(id)
+        let normalizedBrowseId = normalizedIdentifier(browseId)
+        let playlistId = normalizedID.flatMap { isPlaylistLike($0) ? $0 : nil }
         playerWebView.playPlaylist(id: id)
+        playbackContext = PlaybackContext(
+            source: source,
+            videoId: nil,
+            playlistId: playlistId,
+            browseId: normalizedBrowseId ?? (playlistId == nil ? normalizedID : nil),
+            resultType: resultType
+        )
+    }
+
+    var queueRequestVideoId: String {
+        if let playbackVideoId = normalizedIdentifier(playbackContext?.videoId) {
+            return playbackVideoId
+        }
+        return track.videoId
     }
 
     // MARK: - Queue Management
@@ -252,6 +325,8 @@ final class PlayerService {
     private func handleStateUpdate(_ state: SingletonPlayerWebView.TrackState) {
         let trackChanged = track.videoId != state.videoId
             || (track.title != state.title && !state.title.isEmpty)
+        let observedPlaylistId = normalizedIdentifier(state.playlistId)
+        let contextChanged = playbackContext?.playlistId != observedPlaylistId
 
         track.title = state.title
         track.artist = state.artist
@@ -260,7 +335,29 @@ final class PlayerService {
         track.duration = state.duration
         track.currentTime = state.currentTime
         currentTimeMs = Int(state.currentTime * 1000)
+        updateStatusLyricLine()
         track.isLiked = state.isLiked
+        isShuffle = state.isShuffle
+        repeatMode = state.repeatMode
+        volume = Double(state.volume)
+
+        if let existingContext = playbackContext {
+            playbackContext = PlaybackContext(
+                source: existingContext.source,
+                videoId: state.videoId.isEmpty ? existingContext.videoId : state.videoId,
+                playlistId: observedPlaylistId,
+                browseId: existingContext.browseId,
+                resultType: existingContext.resultType
+            )
+        } else if !state.videoId.isEmpty || observedPlaylistId != nil {
+            playbackContext = PlaybackContext(
+                source: .web,
+                videoId: state.videoId.isEmpty ? nil : state.videoId,
+                playlistId: observedPlaylistId,
+                browseId: nil,
+                resultType: nil
+            )
+        }
 
         if let url = URL(string: state.albumArt), !state.albumArt.isEmpty {
             track.albumArtURL = url
@@ -282,9 +379,23 @@ final class PlayerService {
         }
 
         // Load album art on track change
-        if trackChanged, let artURL = track.albumArtURL, artURL != lastArtURL {
+        if (trackChanged || contextChanged), let artURL = track.albumArtURL, artURL != lastArtURL {
             loadAlbumArt(from: artURL)
         }
+    }
+
+    private func normalizedIdentifier(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return trimmed
+    }
+
+    private func isPlaylistLike(_ identifier: String) -> Bool {
+        identifier.hasPrefix("VL")
+            || identifier.hasPrefix("PL")
+            || identifier.hasPrefix("RD")
+            || identifier.hasPrefix("RDCLAK")
     }
 
     private func handleTrackEnded() {
@@ -302,12 +413,28 @@ final class PlayerService {
     }
 
     private func updateStatusLyricLine() {
-        guard !statusLyricLines.isEmpty, statusLyricLines.count == statusLyricTimestampsMs.count else {
+        guard !statusLyricLines.isEmpty else {
             clearCurrentLyricLine()
             return
         }
 
-        guard let firstTimestamp = statusLyricTimestampsMs.first, currentTimeMs >= firstTimestamp else {
+        if !statusLyricsAreSynced || statusLyricTimestampsMs.isEmpty {
+            let lineIndex = min(Int(track.progress * Double(statusLyricLines.count)), statusLyricLines.count - 1)
+            updateCurrentLyricLine(statusLyricLines[max(0, lineIndex)])
+            return
+        }
+
+        guard statusLyricLines.count == statusLyricTimestampsMs.count else {
+            clearCurrentLyricLine()
+            return
+        }
+
+        guard let firstTimestamp = statusLyricTimestampsMs.first else {
+            clearCurrentLyricLine()
+            return
+        }
+
+        guard currentTimeMs >= firstTimestamp else {
             clearCurrentLyricLine()
             return
         }

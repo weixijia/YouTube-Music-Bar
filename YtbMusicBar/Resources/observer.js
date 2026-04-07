@@ -11,6 +11,8 @@
         albumArt: 'img.image.ytmusic-player-bar',
         video: 'video',
         likeButton: 'ytmusic-like-button-renderer',
+        shuffleButton: '.shuffle.ytmusic-player-bar',
+        repeatButton: '.repeat.ytmusic-player-bar',
         progressBar: '#progress-bar',
         // Fallbacks
         titleAlt: '.title.ytmusic-player-bar .yt-formatted-string',
@@ -26,6 +28,69 @@
 
     function querySelector(primary, fallback) {
         return document.querySelector(primary) || (fallback ? document.querySelector(fallback) : null);
+    }
+
+    function collectButtonStrings(element) {
+        if (!element) return '';
+
+        const candidates = [
+            element,
+            element.querySelector('button'),
+            element.querySelector('[aria-label]'),
+            element.querySelector('[title]'),
+        ].filter(Boolean);
+
+        const values = [];
+        for (const candidate of candidates) {
+            values.push(
+                candidate.getAttribute?.('aria-pressed'),
+                candidate.getAttribute?.('aria-label'),
+                candidate.getAttribute?.('title'),
+                candidate.getAttribute?.('repeat-mode'),
+                candidate.getAttribute?.('data-repeat-mode'),
+                candidate.getAttribute?.('data-tooltip-text'),
+                candidate.getAttribute?.('icon'),
+                candidate.textContent
+            );
+        }
+
+        return values
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+    }
+
+    function getShuffleState() {
+        const shuffleBtn = document.querySelector(SELECTORS.shuffleButton);
+        if (!shuffleBtn) return false;
+
+        const pressed = shuffleBtn.getAttribute('aria-pressed')
+            || shuffleBtn.querySelector('button')?.getAttribute('aria-pressed');
+        if (pressed === 'true') return true;
+        if (pressed === 'false') return false;
+
+        const text = collectButtonStrings(shuffleBtn);
+        return text.includes('shuffle on') || text.includes('turn off shuffle') || text.includes('shuffle is on');
+    }
+
+    function getRepeatMode() {
+        const repeatBtn = document.querySelector(SELECTORS.repeatButton);
+        if (!repeatBtn) return 0;
+
+        const text = collectButtonStrings(repeatBtn);
+        if (text.includes('repeat one') || text.includes('repeat 1') || text.includes('repeat this song')) {
+            return 2;
+        }
+        if (
+            text.includes('repeat all')
+            || text.includes('repeat on')
+            || text.includes('turn off repeat')
+            || text.includes('disable repeat')
+        ) {
+            return 1;
+        }
+
+        return 0;
     }
 
     // Try to get metadata from YouTube's internal player API (more reliable than DOM)
@@ -93,11 +158,18 @@
             }
         }
 
-        // Fallback: video ID from URL
+        let playlistId = '';
+
         if (!videoId) {
             try {
                 const url = new URL(window.location.href);
                 videoId = url.searchParams.get('v') || '';
+                playlistId = url.searchParams.get('list') || '';
+            } catch (e) {}
+        } else {
+            try {
+                const url = new URL(window.location.href);
+                playlistId = url.searchParams.get('list') || '';
             } catch (e) {}
         }
 
@@ -132,10 +204,12 @@
         // Like state
         const likeBtn = document.querySelector(SELECTORS.likeButton);
         const isLiked = likeBtn?.getAttribute('like-status') === 'LIKE';
+        const isShuffle = getShuffleState();
+        const repeatMode = getRepeatMode();
 
         return {
-            title, artist, albumArt, videoId, albumTitle,
-            isPlaying, currentTime, duration, volume, isLiked,
+            title, artist, albumArt, videoId, playlistId, albumTitle,
+            isPlaying, currentTime, duration, volume, isLiked, isShuffle, repeatMode,
         };
     }
 
@@ -191,6 +265,8 @@
         lyricsPollId = null;
     };
 
+    window.ytmForceSendUpdate = forceSend;
+
     // Attach listeners to a video element
     function attachVideoListeners(video) {
         if (!video || video === currentVideoElement) return;
@@ -224,7 +300,7 @@
             childList: true,
             characterData: true,
             attributes: true,
-            attributeFilter: ['src', 'title', 'aria-label', 'like-status', 'value', 'aria-valuemax'],
+            attributeFilter: ['src', 'title', 'aria-label', 'aria-pressed', 'like-status', 'repeat-mode', 'data-repeat-mode', 'value', 'aria-valuemax'],
         });
 
         // Video element listeners
@@ -252,6 +328,24 @@
         // Initial send
         sendUpdate();
     }
+
+    window.addEventListener('popstate', forceSend);
+
+    const originalPushState = history.pushState;
+    history.pushState = function() {
+        const result = originalPushState.apply(this, arguments);
+        setTimeout(forceSend, 0);
+        return result;
+    };
+
+    const originalReplaceState = history.replaceState;
+    history.replaceState = function() {
+        const result = originalReplaceState.apply(this, arguments);
+        setTimeout(forceSend, 0);
+        return result;
+    };
+
+    document.addEventListener('yt-navigate-finish', forceSend);
 
     // Start when DOM is ready
     if (document.readyState === 'complete' || document.readyState === 'interactive') {

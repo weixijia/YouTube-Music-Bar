@@ -140,19 +140,34 @@ function _applyVolume(value) {
 
 function ytmToggleShuffle() {
     const btn = document.querySelector('.shuffle.ytmusic-player-bar');
-    if (btn) btn.click();
+    if (btn) {
+        btn.click();
+        setTimeout(() => {
+            if (window.ytmForceSendUpdate) window.ytmForceSendUpdate();
+        }, 150);
+    }
 }
 
 function ytmCycleRepeat() {
     const btn = document.querySelector('.repeat.ytmusic-player-bar');
-    if (btn) btn.click();
+    if (btn) {
+        btn.click();
+        setTimeout(() => {
+            if (window.ytmForceSendUpdate) window.ytmForceSendUpdate();
+        }, 150);
+    }
 }
 
 // --- Like / Dislike ---
 
 function ytmToggleLike() {
     const likeBtn = document.querySelector('ytmusic-like-button-renderer #button-shape-like button');
-    if (likeBtn) likeBtn.click();
+    if (likeBtn) {
+        likeBtn.click();
+        setTimeout(() => {
+            if (window.ytmForceSendUpdate) window.ytmForceSendUpdate();
+        }, 150);
+    }
 }
 
 function ytmToggleDislike() {
