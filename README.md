@@ -1,40 +1,43 @@
 # YouTube Music Bar
 
-YouTube Music in your macOS menu bar.
+YouTube Music, tucked into your Mac menu bar.
 
-<!-- Add a real screenshot before the next public release.
-<img src="docs/screenshot.png" alt="YouTube Music Bar screenshot">
--->
+YouTube Music Bar is a small macOS app for people who want their music close by, but not taking over the whole desktop. It lives in the menu bar, stays out of the Dock, and gives you a quick little player for browsing, searching, queuing, and reading lyrics.
 
-YouTube Music Bar is a lightweight Mac app that keeps YouTube Music one click away. It lives in the menu bar, stays out of the Dock, and gives you playback, search, queue, library, and lyrics without leaving the desktop.
+It is meant to feel easy. Click, pick something, keep working.
 
-## Why it exists
+## What it is
 
-- Fast access from the menu bar
-- Native playback controls
-- Search, queue, and library in one compact panel
-- Current lyric line right in the menu bar
+YouTube Music Bar keeps the essentials one click away:
 
-## What it can do
+- Home, Search, Collection, and Now Playing in a compact panel
+- Playback controls for play, pause, skip, seek, shuffle, repeat, and like
+- Queue access without opening a full desktop app
+- Lyrics support, including synced lyrics when available
+- The current lyric line right in the menu bar
+- Media key support and Now Playing / Control Center integration
+- Background playback, track change notifications, and launch at login
 
-- Play, pause, skip, seek, shuffle, repeat, and like tracks
-- Browse Home, Search, Collection, and Now Playing
-- Show synced lyrics when available, with a plain-lyrics fallback
-- Display the current lyric line in the menu bar
-- Support media keys and Now Playing / Control Center
-- Keep music running in the background
-- Handle sign-in, sign-out, notifications, and launch at login
+## Why you might want it
+
+- You use YouTube Music every day and want faster access
+- You like menu bar apps that stay light and out of the way
+- You want lyrics and playback controls nearby while you work
 
 ## Requirements
 
 - macOS 14 or later
 - A Google account with access to YouTube Music
 
-## Download
+## Installation
 
-Grab the latest `.dmg` from the [Releases](https://github.com/weixijia/YouTube-Music-Bar/releases) page.
+### Download
 
-If macOS quarantines the app after download, run:
+Download the latest `.dmg` from the [Releases](https://github.com/weixijia/YouTube-Music-Bar/releases) page.
+
+This project is currently distributed directly through GitHub Releases.
+
+If macOS quarantines the app after you move it to `/Applications`, run:
 
 ```bash
 xattr -cr "/Applications/YouTube Music Bar.app"
@@ -42,16 +45,12 @@ xattr -cr "/Applications/YouTube Music Bar.app"
 
 ## Build from source
 
-Open `YouTubeMusicBar.xcodeproj` in Xcode and run the `YouTubeMusicBar` scheme.
+Open `YouTubeMusicBar.xcodeproj` in Xcode, then run the `YouTubeMusicBar` scheme.
 
-If you want a universal build or a DMG, use the steps in [RELEASE.md](RELEASE.md).
-
-## Notes
-
-- This is an unofficial app.
-- It is not affiliated with YouTube or Google.
-- The current release flow is direct distribution, not App Store distribution.
+If you want to build a release app or package a DMG, the current steps are in [RELEASE.md](RELEASE.md).
 
 ## Disclaimer
+
+YouTube Music Bar is an unofficial app and is not affiliated with YouTube or Google.
 
 YouTube and YouTube Music are trademarks of Google.
