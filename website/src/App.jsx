@@ -54,7 +54,7 @@ function Hero() {
       <div className="hero__content fade-up">
         <div className="hero__badge">
           <span className="hero__badge-dot" />
-          Available for macOS 26+
+          Designed for macOS Tahoe
         </div>
 
         <h1 className="hero__title">
