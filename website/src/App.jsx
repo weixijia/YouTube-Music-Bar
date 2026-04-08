@@ -54,7 +54,7 @@ function Hero() {
       <div className="hero__content fade-up">
         <div className="hero__badge">
           <span className="hero__badge-dot" />
-          Available for macOS 14+
+          Available for macOS 26+
         </div>
 
         <h1 className="hero__title">
@@ -187,7 +187,7 @@ function Download() {
         </div>
 
         <div className="download__note">
-          <p>Requires macOS 14 Sonoma or later</p>
+          <p>Requires macOS 26 Tahoe or later</p>
           <p>Universal binary — Apple Silicon & Intel</p>
         </div>
 
