@@ -2,7 +2,7 @@
 
 > YouTube Music을 Mac 메뉴 바에 담다.
 
-🌐 🇬🇧 [English](../README.md) | 🇨🇳 [中文](README_CN.md) | 🇯🇵 [日本語](README_JP.md) | 🇰🇷 [한국어](README_KR.md) | 🇫🇷 [Français](README_FR.md) | 🇩🇪 [Deutsch](README_DE.md) | 🇮🇹 [Italiano](README_IT.md) | 🇪🇸 [Español](README_ES.md)
+🌐 [🇬🇧 English](../README.md) | [🇨🇳 中文](README_CN.md) | [🇯🇵 日本語](README_JP.md) | [🇰🇷 한국어](README_KR.md) | [🇫🇷 Français](README_FR.md) | [🇩🇪 Deutsch](README_DE.md) | [🇮🇹 Italiano](README_IT.md) | [🇪🇸 Español](README_ES.md)
 
 <p align="center">
   <img src="screenshot.png" alt="YouTube Music Bar 스크린샷" width="680">

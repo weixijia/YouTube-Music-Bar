@@ -2,7 +2,7 @@
 
 > YouTube Music，藏进你的 Mac 菜单栏。
 
-🌐 🇬🇧 [English](../README.md) | 🇨🇳 [中文](README_CN.md) | 🇯🇵 [日本語](README_JP.md) | 🇰🇷 [한국어](README_KR.md) | 🇫🇷 [Français](README_FR.md) | 🇩🇪 [Deutsch](README_DE.md) | 🇮🇹 [Italiano](README_IT.md) | 🇪🇸 [Español](README_ES.md)
+🌐 [🇬🇧 English](../README.md) | [🇨🇳 中文](README_CN.md) | [🇯🇵 日本語](README_JP.md) | [🇰🇷 한국어](README_KR.md) | [🇫🇷 Français](README_FR.md) | [🇩🇪 Deutsch](README_DE.md) | [🇮🇹 Italiano](README_IT.md) | [🇪🇸 Español](README_ES.md)
 
 <p align="center">
   <img src="screenshot.png" alt="YouTube Music Bar 截图" width="680">
