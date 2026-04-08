@@ -215,7 +215,7 @@ function Footer() {
           <span className="footer__dot">·</span>
           <a href="https://github.com/weixijia/YouTube-Music-Bar/issues">Issues</a>
         </div>
-        <p className="footer__copy">© 2025 YouTube Music Bar</p>
+        <p className="footer__copy">© 2026 YouTube Music Bar</p>
       </div>
     </footer>
   )
