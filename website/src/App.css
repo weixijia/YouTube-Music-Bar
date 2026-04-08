@@ -267,6 +267,7 @@
   line-height: 1.6;
   margin-bottom: 36px;
   font-weight: 400;
+  min-height: 60px;
 }
 
 .hero__actions {
@@ -361,7 +362,7 @@
 }
 
 /* ===== Section Common ===== */
-.section-header { text-align: center; margin-bottom: 60px; }
+.section-header { text-align: center; margin-bottom: 60px; min-height: 120px; }
 
 .section-title {
   font-size: clamp(32px, 4vw, 52px);
@@ -400,6 +401,11 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+  align-items: stretch;
+}
+
+.features__grid > * {
+  height: 100%;
 }
 
 .feature-card {
@@ -409,6 +415,9 @@
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(16px);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
 }
 
 .feature-card:hover {
@@ -435,6 +444,7 @@
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.55;
+  flex: 1;
 }
 
 /* ===== Showcase ===== */
@@ -452,6 +462,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+  align-items: stretch;
 }
 
 .showcase-card {
@@ -462,6 +473,10 @@
   backdrop-filter: blur(16px);
   text-align: center;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .showcase-card:hover {
@@ -494,6 +509,7 @@
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
+  flex: 1;
 }
 
 /* ===== Download ===== */
