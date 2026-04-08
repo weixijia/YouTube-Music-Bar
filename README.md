@@ -2,7 +2,7 @@
 
 > YouTube Music, tucked into your Mac menu bar.
 
-🌐 [English](README.md) | [中文](docs/README_CN.md) | [日本語](docs/README_JP.md) | [한국어](docs/README_KR.md)
+🌐 [English](README.md) | [中文](docs/README_CN.md) | [日本語](docs/README_JP.md) | [한국어](docs/README_KR.md) | [Français](docs/README_FR.md) | [Deutsch](docs/README_DE.md) | [Italiano](docs/README_IT.md) | [Español](docs/README_ES.md)
 
 <p align="center">
   <img src="docs/screenshot.png" alt="YouTube Music Bar Screenshot" width="680">
